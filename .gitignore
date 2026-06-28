@@ -1,0 +1,48 @@
+# ── Build outputs ───────────────────────────────────────────
+*.o
+*.a
+*.so
+*.dylib
+*.exe
+
+webview/
+
+dotfiles-mgr
+test
+test2
+test3
+
+# ── C3 compiler cache ──────────────────────────────────────
+.c3cache/
+
+vendor
+
+# ── vcpkg ──────────────────────────────────────────────────
+vendor/vcpkg_installed/
+vendor/vcpkg/buildtrees/
+vendor/vcpkg/packages/
+vendor/vcpkg/downloads/
+vendor/vcpkg/build/
+vcpkg_installed/
+
+# ── Old manual deps (deprecated) ───────────────────────────
+deps/out/
+deps/cJSON/
+deps/libarchive/
+deps/libgit2/
+deps/sqlite/
+deps/libyaml/
+deps/libsodium/
+
+# ── IDE / editor ───────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.cache/
+compile_commands.json
+
+# ── OS ─────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
