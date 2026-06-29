@@ -342,6 +342,7 @@ class FileTree extends ReactiveElement {
 
 class FileViewer extends ReactiveElement {
     #editor = null;
+    #editorContainer = null;
 
     render() {
         return html`
@@ -359,14 +360,66 @@ class FileViewer extends ReactiveElement {
                 if (!file) return html`<div class="e">Select a file to view</div>`;
                 return html`<div class="hdr"><span class="fn">${file}</span><span class="meta">${content?.size || 0} bytes</span></div>`;
             }}
-            <div class="code" id="editor-container"></div>
+            <div class="code" id="editor-wrapper"></div>
         `;
     }
 
+    connectedCallback() {
+        this.#mounted = true;
+        this._setupStyles();
+        try {
+            this.#cleanup = createEffect(() => {
+                this.#runUpdate();
+            });
+            this.onMount?.();
+        } catch (err) {
+            logError(new ComponentError('connectedCallback failed', {
+                context: { error: err, component: this.constructor.name }
+            }));
+        }
+    }
+
+    #runUpdate() {
+        const content = this.render();
+        if (content) {
+            this.root.replaceChildren();
+            this.root.appendChild(content);
+        }
+
+        if (this.#editorContainer) {
+            const wrapper = this.root.querySelector('#editor-wrapper');
+            if (wrapper) {
+                wrapper.appendChild(this.#editorContainer);
+            }
+        }
+
+        try {
+            this.setupEvents();
+        } catch (err) {
+            logError(new ComponentError('setupEvents failed', {
+                context: { error: err, component: this.constructor.name }
+            }));
+        }
+    }
+
+    requestUpdate() {
+        this.#runUpdate();
+    }
+
     setupEvents() {
-        const container = this.root.querySelector('#editor-container');
-        if (!this.#editor && container) {
-            this.#editor = monaco.editor.create(container, {
+        const wrapper = this.root.querySelector('#editor-wrapper');
+        if (!wrapper) return;
+
+        if (!this.#editorContainer) {
+            this.#editorContainer = document.createElement('div');
+            this.#editorContainer.id = 'editor-container';
+            wrapper.appendChild(this.#editorContainer);
+        } else if (this.#editorContainer.parentElement !== wrapper) {
+            wrapper.appendChild(this.#editorContainer);
+        }
+
+        if (!this.#editor && this.#editorContainer) {
+            this.#editor = monaco.editor.create(this.#editorContainer, {
                 value: '',
                 theme: 'vs-dark',
                 readOnly: true,
@@ -376,12 +429,10 @@ class FileViewer extends ReactiveElement {
                 fixedOverflowWidgets: true
             });
             
-            // Effect to update editor content when fileContent changes
             createEffect(() => {
                 const content = fileContent();
                 if (this.#editor && content) {
                     this.#editor.setValue(content.content || '');
-                    // Basic language detection based on extension
                     const ext = (content.path || '').split('.').pop();
                     const langMap = { js: 'javascript', ts: 'typescript', html: 'html', css: 'css', json: 'json', md: 'markdown', c3: 'c' };
                     monaco.editor.setModelLanguage(this.#editor.getModel(), langMap[ext] || 'plaintext');
@@ -397,6 +448,7 @@ class FileViewer extends ReactiveElement {
             this.#editor.dispose();
             this.#editor = null;
         }
+        this.#editorContainer = null;
     }
 }
 

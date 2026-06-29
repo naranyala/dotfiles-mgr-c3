@@ -20,13 +20,13 @@ struct LogEntry {
     char* message;
     char* source;
     long timestamp;
-};
+}
 
 struct LogBuffer {
     LogEntry[256] entries;
     int head;
     int count;
-};
+}
 
 RpcRegistry global_registry;
 LogBuffer global_logs;
@@ -53,11 +53,7 @@ fn void log_push(char* level, char* message, char* source) {
     entry.source = source;
     entry.timestamp = 0; // Should use actual timestamp
     
-    global_logs.head = (global_logs.head + 1) % 256;
-    if (global_logs.count < 256) global_logs.count++;
-
-    // Print to console
-    libc::printfn("[%s] %s: %s", level, source, message);
+    libc::printf("[%s] %s: %s\n", level, source, message);
 
     // Emit to frontend
     cjson::CJson log_json = cjson::cJSON_CreateObject();
@@ -152,10 +148,10 @@ fn void handle_logs_get(webview::Webview w, char* id, cjson::CJson json) {
         int idx = (global_logs.head - global_logs.count + i + 256) % 256;
         LogEntry* entry = &global_logs.entries[idx];
         cjson::CJson log_obj = cjson::cJSON_CreateObject();
-        cjson::cJSON_AddStringToObject(log_obj, "level", entry->level);
-        cjson::cJSON_AddStringToObject(log_obj, "message", entry->message);
-        cjson::cJSON_AddStringToObject(log_obj, "source", entry->source);
-        cjson::cJSON_AddNumberToObject(log_obj, "timestamp", (double)entry->timestamp);
+        cjson::cJSON_AddStringToObject(log_obj, "level", entry.level);
+        cjson::cJSON_AddStringToObject(log_obj, "message", entry.message);
+        cjson::cJSON_AddStringToObject(log_obj, "source", entry.source);
+        cjson::cJSON_AddNumberToObject(log_obj, "timestamp", (double)entry.timestamp);
         cjson::cJSON_AddItemToArray(logs_array, log_obj);
     }
     char* str = cjson::cJSON_PrintUnformatted(logs_array);
@@ -172,9 +168,9 @@ fn void handle_state_get(webview::Webview w, char* id, cjson::CJson json) {
     for (int i = 0; i < errors::global_errors.count; i++) {
         errors::ErrorInfo* err = &errors::global_errors.entries[i];
         cjson::CJson err_obj = cjson::cJSON_CreateObject();
-        cjson::cJSON_AddNumberToObject(err_obj, "code", (double)err->code);
-        cjson::cJSON_AddStringToObject(err_obj, "message", err->message);
-        cjson::cJSON_AddStringToObject(err_obj, "source", err->source);
+        cjson::cJSON_AddNumberToObject(err_obj, "code", (double)err.code);
+        cjson::cJSON_AddStringToObject(err_obj, "message", err.message);
+        cjson::cJSON_AddStringToObject(err_obj, "source", err.source);
         cjson::cJSON_AddItemToArray(errors_array, err_obj);
     }
     cjson::cJSON_AddItemToObject(state_obj, "errors", errors_array);
