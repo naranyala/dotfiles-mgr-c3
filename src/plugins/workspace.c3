@@ -6,15 +6,27 @@ import core::rpc;
 import core::errors;
 extern fn int mkdir(char* path, int mode);
 
-const char* CONFIG_DIR = "/home/naranyala/.local/share/dotfiles-mgr";
-const char* CONFIG_FILE = "/home/naranyala/.local/share/dotfiles-mgr/workspaces.json";
+const char* CONFIG_DIR = "/media/naranyala/Data/projects-remote/dotfiles-mgr-c3/state";
+const char* CONFIG_FILE = "/media/naranyala/Data/projects-remote/dotfiles-mgr-c3/state/workspaces.json";
+const char* REPOS_DIR = "./examples/repos";
 
 // Load workspaces from disk
 fn cjson::CJson load_workspaces() {
     void* f = libc::fopen(CONFIG_FILE, "r");
     if ((void*)f == null) {
-        // Return default laboratory workspace without mockups (dynamic discovery)
-        char* default_json = "[{\"id\":\"lab\",\"name\":\"Laboratory\",\"groups\":[]}]";
+        // Return default lab workspace with all example repos
+        mkdir("./state", 0755);
+        mkdir(REPOS_DIR, 0755);
+
+        // Create default workspaces.json with relative paths
+        char* default_json = "[{\"id\":\"lab\",\"name\":\"Lab (Examples)\",\"groups\":[{\"id\":\"basic\",\"name\":\"Basic\",\"repos\":[{\"id\":\"basic-commits\",\"name\":\"basic-commits\",\"path\":\"./examples/repos/basic-commits\",\"type\":\"local\"},{\"id\":\"initial-commit-only\",\"name\":\"initial-commit-only\",\"path\":\"./examples/repos/initial-commit-only\",\"type\":\"local\"},{\"id\":\"empty-repo\",\"name\":\"empty-repo\",\"path\":\"./examples/repos/empty-repo\",\"type\":\"local\"}]},{\"id\":\"branching\",\"name\":\"Branching\",\"repos\":[{\"id\":\"multiple-branches\",\"name\":\"multiple-branches\",\"path\":\"./examples/repos/multiple-branches\",\"type\":\"local\"},{\"id\":\"merge-conflicts\",\"name\":\"merge-conflicts\",\"path\":\"./examples/repos/merge-conflicts\",\"type\":\"local\"},{\"id\":\"rebase-history\",\"name\":\"rebase-history\",\"path\":\"./examples/repos/rebase-history\",\"type\":\"local\"},{\"id\":\"complex-history\",\"name\":\"complex-history\",\"path\":\"./examples/repos/complex-history\",\"type\":\"local\"},{\"id\":\"orphan-branches\",\"name\":\"orphan-branches\",\"path\":\"./examples/repos/orphan-branches\",\"type\":\"local\"}]},{\"id\":\"advanced\",\"name\":\"Advanced\",\"repos\":[{\"id\":\"tags-releases\",\"name\":\"tags-releases\",\"path\":\"./examples/repos/tags-releases\",\"type\":\"local\"},{\"id\":\"cherry-pick-history\",\"name\":\"cherry-pick-history\",\"path\":\"./examples/repos/cherry-pick-history\",\"type\":\"local\"},{\"id\":\"detached-head\",\"name\":\"detached-head\",\"path\":\"./examples/repos/detached-head\",\"type\":\"local\"},{\"id\":\"submodule-repo\",\"name\":\"submodule-repo\",\"path\":\"./examples/repos/submodule-repo\",\"type\":\"local\"}]},{\"id\":\"special\",\"name\":\"Special Cases\",\"repos\":[{\"id\":\"bare-repo\",\"name\":\"bare-repo.git\",\"path\":\"./examples/repos/bare-repo.git\",\"type\":\"local\"},{\"id\":\"shallow-clone\",\"name\":\"shallow-clone\",\"path\":\"./examples/repos/shallow-clone\",\"type\":\"local\"},{\"id\":\"gitignore-patterns\",\"name\":\"gitignore-patterns\",\"path\":\"./examples/repos/gitignore-patterns\",\"type\":\"local\"},{\"id\":\"large-files\",\"name\":\"large-files\",\"path\":\"./examples/repos/large-files\",\"type\":\"local\"},{\"id\":\"nested-dirs\",\"name\":\"nested-dirs\",\"path\":\"./examples/repos/nested-dirs\",\"type\":\"local\"},{\"id\":\"signed-commits\",\"name\":\"signed-commits\",\"path\":\"./examples/repos/signed-commits\",\"type\":\"local\"},{\"id\":\"worktree-demo\",\"name\":\"worktree-demo\",\"path\":\"./examples/repos/worktree-demo\",\"type\":\"local\"}]},{\"id\":\"dotfiles\",\"name\":\"Dotfiles\",\"repos\":[{\"id\":\"dotfiles-collection\",\"name\":\"dotfiles-collection\",\"path\":\"./examples/repos/dotfiles-collection\",\"type\":\"local\"}]}]},{\"id\":\"default\",\"name\":\"Default\",\"groups\":[]}]";
+
+        void* df = libc::fopen(CONFIG_FILE, "w");
+        if (df != null) {
+            libc::fwrite(default_json, 1, libc::strlen((ZString)default_json), df);
+            libc::fclose(df);
+        }
+
         cjson::CJson ws = cjson::cJSON_Parse(default_json);
         if ((void*)ws == null) {
             return cjson::cJSON_CreateArray();

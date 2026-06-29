@@ -20,8 +20,8 @@ extern fn int mkdir(char* path, int mode);
 
 // Default storage path for repos (examples lab)
 const char* DEFAULT_REPOS_DIR = "/media/naranyala/Data/projects-remote/dotfiles-mgr-c3/examples";
-const char* USER_REPOS_DIR = "/home/naranyala/.local/share/dotfiles-mgr/repos";
-const char* LAST_WORKSPACE_FILE = "/home/naranyala/.local/share/dotfiles-mgr/last_workspace.txt";
+const char* USER_REPOS_DIR = "/media/naranyala/Data/projects-remote/dotfiles-mgr-c3/state/repos";
+const char* LAST_WORKSPACE_FILE = "/media/naranyala/Data/projects-remote/dotfiles-mgr-c3/state/last_workspace.txt";
 char[512] current_workspace;
 
 fn void init_git() {
@@ -49,6 +49,7 @@ fn void init_git() {
     }
     
     // Also ensure user repos dir exists
+    mkdir("/media/naranyala/Data/projects-remote/dotfiles-mgr-c3/state", 0o755);
     mkdir(USER_REPOS_DIR, 0o755);
 }
 
@@ -136,13 +137,26 @@ fn void handle_repo_clone(webview::Webview w, char* id, cjson::CJson args) {
 
 fn void handle_repo_list(webview::Webview w, char* id, cjson::CJson args) {
     cjson::CJson result = cjson::cJSON_CreateArray();
+    
+    void* dbg = libc::fopen("/media/naranyala/Data/projects-remote/dotfiles-mgr-c3/backend_debug.log", "w");
+    if (dbg != null) {
+        libc::fprintf(dbg, "handle_repo_list called!\n");
+        libc::fprintf(dbg, "current_workspace: '%s'\n", (char*)&current_workspace[0]);
+        libc::fflush(dbg);
+    }
 
     char[1024] cmd;
     libc::snprintf(&cmd[0], 1024, "find %s -type d \\( -name \".git\" -o -name \"*.git\" \\) 2>/dev/null", (char*)&current_workspace[0]);
 
+    if (dbg != null) {
+        libc::fprintf(dbg, "cmd: %s\n", &cmd[0]);
+        libc::fflush(dbg);
+    }
+
     void* fp = popen(&cmd[0], "r");
     if (fp != null) {
         char[1024] buf;
+        int repo_count = 0;
         while (fgets(&buf[0], 1024, fp) != null) {
             int len = (int)libc::strlen((ZString)&buf[0]);
             if (len > 0 && buf[len - 1] == '\n') buf[len - 1] = 0;
@@ -153,9 +167,16 @@ fn void handle_repo_list(webview::Webview w, char* id, cjson::CJson args) {
             }
 
             char* repo_path_str = &buf[0];
+            if (dbg != null) libc::fprintf(dbg, "found path: %s\n", repo_path_str);
 
             libgit2::GitRepository r;
-            if (libgit2::git_repository_open(&r, repo_path_str) == 0) {
+            int err = libgit2::git_repository_open(&r, repo_path_str);
+            if (err == 0) {
+                repo_count++;
+                if (dbg != null) {
+                    libc::fprintf(dbg, "valid repo opened!\n");
+                    libc::fflush(dbg);
+                }
                 cjson::CJson repo = cjson::cJSON_CreateObject();
                 cjson::cJSON_AddStringToObject(repo, "path", repo_path_str);
 
@@ -185,6 +206,11 @@ fn void handle_repo_list(webview::Webview w, char* id, cjson::CJson args) {
             }
         }
         pclose(fp);
+    }
+    
+    if (dbg != null) {
+        libc::fprintf(dbg, "Finished handle_repo_list!\n");
+        libc::fclose(dbg);
     }
 
     char* json_str = cjson::cJSON_PrintUnformatted(result);
