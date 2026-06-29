@@ -5,6 +5,7 @@
 *.dylib
 *.exe
 
+examples/
 webview/
 
 dotfiles-mgr

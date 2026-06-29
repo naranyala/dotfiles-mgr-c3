@@ -1,53 +1,47 @@
 module main;
 import webview;
-import cjson;
+import core::rpc;
+import core::errors;
+import plugins::ping;
+import plugins::system;
+import plugins::repo;
+import plugins::workspace;
 import libc;
-
-fn void handle_rpc(char* id, char* req, void* arg) {
-    webview::Webview w = (webview::Webview)arg;
-    
-    cjson::CJson json = cjson::cJSON_Parse(req);
-    if (!json) {
-        webview::webview_return(w, id, 1, "{\"error\": \"Invalid JSON\"}");
-        return;
-    }
-    
-    if (!cjson::cJSON_IsArray(json)) {
-        cjson::cJSON_Delete(json);
-        webview::webview_return(w, id, 1, "{\"error\": \"Request must be an array\"}");
-        return;
-    }
-    
-    cjson::CJson method_item = cjson::cJSON_GetArrayItem(json, 0);
-    if (!cjson::cJSON_IsString(method_item)) {
-        cjson::cJSON_Delete(json);
-        webview::webview_return(w, id, 1, "{\"error\": \"Method name must be a string\"}");
-        return;
-    }
-    
-    char* method = cjson::cJSON_GetStringValue(method_item);
-    
-    if (libc::strcmp((ZString)method, "ping") == 0) {
-        webview::webview_return(w, id, 0, "{\"message\": \"pong from C3!\"}");
-    } else if (libc::strcmp((ZString)method, "getSystemInfo") == 0) {
-        webview::webview_return(w, id, 0, "{\"os\": \"Linux\", \"version\": \"1.0\"}");
-    } else {
-        webview::webview_return(w, id, 1, "{\"error\": \"Method not found\"}");
-    }
-    
-    cjson::cJSON_Delete(json);
-}
+import std::io;
 
 fn int main() {
+    errors::error_init();
+    core::rpc::init();
+
+    int rc;
+
+    rc = plugins::ping::init();
+    if (rc != errors::ERR_OK) io::printfn("Failed to register ping: %d", rc);
+
+    rc = plugins::system::init();
+    if (rc != errors::ERR_OK) io::printfn("Failed to register system: %d", rc);
+
+    rc = plugins::repo::init();
+    if (rc != errors::ERR_OK) io::printfn("Failed to register repo: %d", rc);
+
+    rc = plugins::workspace::init();
+    if (rc != errors::ERR_OK) io::printfn("Failed to register workspace: %d", rc);
+
     webview::Webview w = webview::webview_create(1, null);
-    webview::webview_set_title(w, "C3 Desktop App");
-    webview::webview_set_size(w, 800, 600, webview::HINT_NONE);
-    
-    // Expose `window.backendRPC` to the frontend
-    webview::webview_bind(w, "backendRPC", &handle_rpc, (void*)w);
-    
-    webview::webview_navigate(w, "file:///media/naranyala/Data/projects-remote/c3written-dotfiles-mgr/frontend/dist/index.html");
+    if (!w) {
+        io::printfn("FATAL: Could not create webview");
+        return 1;
+    }
+
+    webview::webview_set_title(w, "Dotfiles Manager");
+    webview::webview_set_size(w, 1200, 800, webview::HINT_NONE);
+
+    core::rpc::bind(w);
+
+    webview::webview_navigate(w, "file:///media/naranyala/Data/projects-remote/dotfiles-mgr-c3/frontend/dist/index.html");
+
     webview::webview_run(w);
     webview::webview_destroy(w);
+
     return 0;
 }

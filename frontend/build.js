@@ -1,14 +1,15 @@
-import * as esbuild from 'esbuild'
+import * as esbuild from 'esbuild';
 
 async function build() {
     await esbuild.build({
         entryPoints: ['src/index.js'],
         bundle: true,
         outfile: 'dist/bundle.js',
+        format: 'esm',
         minify: true,
         sourcemap: true,
-    })
-    console.log("⚡ Build complete! ⚡")
+    });
+    console.log('Build complete');
 }
 
-build().catch(() => process.exit(1))
+build().catch(() => process.exit(1));

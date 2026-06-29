@@ -30,3 +30,5 @@ extern fn CJson cJSON_AddNumberToObject(CJson object, char* name, double number)
 extern fn CJson cJSON_AddBoolToObject(CJson object, char* name, int boolean);
 extern fn CJson cJSON_AddObjectToObject(CJson object, char* name);
 extern fn CJson cJSON_AddArrayToObject(CJson object, char* name);
+extern fn void cJSON_DeleteItemFromArray(CJson array, int index);
+extern fn char* cJSON_SetValuestring(CJson object, char* valuestring);

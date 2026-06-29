@@ -54,7 +54,7 @@ fn int main() {
                 deps/out/lib/libyaml.a \
                 deps/out/lib/libsodium.a \
                 $(pkg-config --libs $PKG_DEPS) \
-                -lstdc++ -lpthread -lz -lm -ldl"
+                -lstdc++ -lpthread -lz -lm -ldl -lgssapi_krb5 -lssl -lcrypto"
     `);
 
     if (c3_status != 0) {
