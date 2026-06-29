@@ -2,30 +2,97 @@ import { createEffect } from './signals.js';
 import { TemplateError, logError } from '../core/errors.js';
 
 export function html(strings, ...values) {
-    const raw = strings.reduce((acc, str, i) => {
-        if (i < values.length) {
-            const val = values[i];
-            if (typeof val === 'function') {
-                return acc + str + '<!--signal-->';
+    let raw = '';
+    const bindings = [];
+    const MARKER = '__html_tmpl_';
+
+    const processVal = (val, isEvent = false, eventName = '', isProp = false, propName = '') => {
+        if (isEvent && typeof val === 'function') {
+            const id = bindings.length;
+            bindings.push({ type: 'event', event: eventName, fn: val });
+            raw += MARKER + id;
+        } else if (isProp) {
+            const id = bindings.length;
+            bindings.push({ type: 'prop', prop: propName, val });
+            raw += MARKER + id;
+        } else if (val?.isDirective) {
+            const id = bindings.length;
+            bindings.push({ type: 'directive', directive: val });
+            raw += `<!--${MARKER}${id}-->`;
+        } else if (val?.isRef) {
+            const id = bindings.length;
+            bindings.push({ type: 'ref', ref: val });
+            raw += `<!--${MARKER}${id}-->`;
+        } else if (typeof val === 'function') {
+            const id = bindings.length;
+            bindings.push({ type: 'signal', fn: val });
+            raw += `<!--${MARKER}${id}-->`;
+        } else if (val instanceof Node) {
+            const id = bindings.length;
+            bindings.push({ type: 'node', node: val });
+            raw += `<!--${MARKER}${id}-->`;
+        } else if (Array.isArray(val)) {
+            for (const item of val) {
+                processVal(item);
             }
-            if (val instanceof Node) {
-                return acc + str + '<!--node-->';
-            }
-            return acc + str + `<!--val:${escapeAttr(String(val ?? ''))}-->`;
+        } else {
+            raw += escapeAttr(String(val ?? ''));
         }
-        return acc + str;
-    }, '');
+    };
+
+    for (let i = 0; i < strings.length; i++) {
+        raw += strings[i];
+        if (i < values.length) {
+            const prevStr = strings[i];
+            const eventMatch = prevStr.match(/@([a-zA-Z-]+)=["']?$/);
+            const propMatch = prevStr.match(/\.([a-zA-Z-]+)=["']?$/);
+            
+            if (eventMatch) {
+                processVal(values[i], true, eventMatch[1]);
+            } else if (propMatch) {
+                processVal(values[i], false, '', true, propMatch[1]);
+            } else {
+                processVal(values[i]);
+            }
+        }
+    }
 
     const template = document.createElement('template');
     template.innerHTML = raw;
     const fragment = template.content.cloneNode(true);
-
-    const signalNodes = [];
-    const domNodes = [];
     const walk = (node) => {
-        if (node.nodeType === 8) {
-            if (node.textContent === 'signal') signalNodes.push(node);
-            else if (node.textContent === 'node') domNodes.push(node);
+        if (node.nodeType === 1) { // Element
+            for (const attr of Array.from(node.attributes)) {
+                if (attr.name.startsWith('@')) {
+                    const val = attr.value;
+                    if (val.startsWith(MARKER)) {
+                        const id = parseInt(val.slice(MARKER.length));
+                        const binding = bindings[id];
+                        if (binding && binding.type === 'event') {
+                            node.addEventListener(binding.event, binding.fn);
+                            node.removeAttribute(attr.name);
+                        }
+                    }
+                } else if (attr.name.startsWith('.')) {
+                    const val = attr.value;
+                    if (val.startsWith(MARKER)) {
+                        const id = parseInt(val.slice(MARKER.length));
+                        const binding = bindings[id];
+                        if (binding && binding.type === 'prop') {
+                            node[binding.prop] = binding.val;
+                            node.removeAttribute(attr.name);
+                        }
+                    }
+                }
+            }
+        } else if (node.nodeType === 8) { // Comment
+            if (node.textContent.startsWith(MARKER)) {
+                const id = parseInt(node.textContent.slice(MARKER.length));
+                const binding = bindings[id];
+                if (binding) {
+                    binding.targetNode = node;
+                }
+            }
         }
         for (const child of Array.from(node.childNodes)) {
             walk(child);
@@ -35,21 +102,41 @@ export function html(strings, ...values) {
 
     const cleanups = [];
     
-    // Handle signal nodes
-    let sigIdx = 0;
-    for (const node of signalNodes) {
-        while (sigIdx < values.length && typeof values[sigIdx] !== 'function') sigIdx++;
-        if (sigIdx < values.length) {
-            const fn = values[sigIdx];
+    for (const binding of bindings) {
+        if (binding.type === 'signal' && binding.targetNode) {
+            const node = binding.targetNode;
+            const fn = binding.fn;
             const text = document.createTextNode('');
             node.parentNode.insertBefore(text, node);
             node.remove();
 
+            let currentNodes = [];
             const cleanup = createEffect(() => {
                 try {
                     const val = fn();
+                    for (const n of currentNodes) if (n.parentNode) n.remove();
+                    currentNodes = [];
+
+                    const insertNode = (n) => {
+                        if (n instanceof DocumentFragment) {
+                            const children = Array.from(n.childNodes);
+                            text.parentNode.insertBefore(n, text);
+                            currentNodes.push(...children);
+                        } else if (n instanceof Node) {
+                            text.parentNode.insertBefore(n, text);
+                            currentNodes.push(n);
+                        } else {
+                            const textNode = document.createTextNode(String(n ?? ''));
+                            text.parentNode.insertBefore(textNode, text);
+                            currentNodes.push(textNode);
+                        }
+                    };
+
                     if (val instanceof Node) {
-                        text.parentNode.insertBefore(val, text);
+                        insertNode(val);
+                        text.textContent = '';
+                    } else if (Array.isArray(val)) {
+                        for (const item of val) insertNode(item);
                         text.textContent = '';
                     } else {
                         text.textContent = String(val ?? '');
@@ -62,19 +149,21 @@ export function html(strings, ...values) {
                 }
             });
             cleanups.push(cleanup);
-            sigIdx++;
-        }
-    }
-
-    // Handle DOM nodes
-    let domIdx = 0;
-    for (const node of domNodes) {
-        while (domIdx < values.length && !(values[domIdx] instanceof Node)) domIdx++;
-        if (domIdx < values.length) {
-            const domVal = values[domIdx];
-            node.parentNode.insertBefore(domVal, node);
+        } else if (binding.type === 'node' && binding.targetNode) {
+            const node = binding.targetNode;
+            node.parentNode.insertBefore(binding.node, node);
             node.remove();
-            domIdx++;
+        } else if (binding.type === 'directive' && binding.targetNode) {
+            const cleanup = binding.directive.setup(binding.targetNode);
+            if (typeof cleanup === 'function') cleanups.push(cleanup);
+        } else if (binding.type === 'ref' && binding.targetNode) {
+            const node = binding.targetNode;
+            const refObj = binding.ref;
+            const el = node.parentElement;
+            if (el) {
+                refObj.value = el;
+            }
+            node.remove();
         }
     }
 
@@ -83,6 +172,13 @@ export function html(strings, ...values) {
     };
 
     return fragment;
+}
+
+export function css(strings, ...values) {
+    const styleString = strings.reduce((acc, str, i) => acc + str + (values[i] || ''), '');
+    const sheet = new CSSStyleSheet();
+    sheet.replaceSync(styleString);
+    return sheet;
 }
 
 export function when(condition, renderFn, fallback = null) {
@@ -98,29 +194,6 @@ export function when(condition, renderFn, fallback = null) {
     };
 }
 
-export function repeat(items, keyFn, renderFn) {
-    return () => {
-        try {
-            const list = items();
-            if (!Array.isArray(list)) return [];
-            return list.map((item, index) => {
-                try {
-                    return renderFn(item, index);
-                } catch (err) {
-                    logError(new TemplateError('List item render failed', {
-                        context: { error: err, index }
-                    }));
-                    return document.createDocumentFragment();
-                }
-            });
-        } catch (err) {
-            logError(new TemplateError('List render failed', {
-                context: { error: err }
-            }));
-            return [];
-        }
-    };
-}
 
 function escapeAttr(str) {
     return str.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');

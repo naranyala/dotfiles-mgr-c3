@@ -225,7 +225,7 @@ class SettingsPanel extends ReactiveElement {
                         </div>
                         <span class="plugin-state state-${p.state}">${p.state}</span>
                     </div>
-                `).join('')}
+                `)}
             </div>
         `;
     }

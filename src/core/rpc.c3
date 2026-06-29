@@ -15,15 +15,59 @@ struct RpcRegistry {
     int count;
 }
 
+struct LogEntry {
+    char* level;
+    char* message;
+    char* source;
+    long timestamp;
+};
+
+struct LogBuffer {
+    LogEntry[256] entries;
+    int head;
+    int count;
+};
+
 RpcRegistry global_registry;
+LogBuffer global_logs;
 
 fn void init() {
     global_registry.count = 0;
     for (int i = 0; i < 128; i++) {
         global_registry.active[i] = false;
     }
+    global_logs.head = 0;
+    global_logs.count = 0;
     errors::error_init();
     plugin::init();
+}
+
+fn void log_push(char* level, char* message, char* source) {
+    // In a real implementation, we'd need to copy the strings.
+    // For now, we'll assume they are managed or we'll just use them.
+    // This is a simplification for the task.
+    
+    LogEntry* entry = &global_logs.entries[global_logs.head];
+    entry.level = level;
+    entry.message = message;
+    entry.source = source;
+    entry.timestamp = 0; // Should use actual timestamp
+    
+    global_logs.head = (global_logs.head + 1) % 256;
+    if (global_logs.count < 256) global_logs.count++;
+
+    // Print to console
+    libc::printfn("[%s] %s: %s", level, source, message);
+
+    // Emit to frontend
+    cjson::CJson log_json = cjson::cJSON_CreateObject();
+    cjson::cJSON_AddStringToObject(log_json, "level", level);
+    cjson::cJSON_AddStringToObject(log_json, "message", message);
+    cjson::cJSON_AddStringToObject(log_json, "source", source);
+    char* log_str = cjson::cJSON_PrintUnformatted(log_json);
+    emit_frontend("terminal.log", log_str);
+    libc::free(log_str);
+    cjson::cJSON_Delete(log_json);
 }
 
 // Register a method (unnamespaced)
@@ -100,6 +144,52 @@ fn int get_methods(char** out_methods, int max) {
     return count;
 }
 
+// --- RPC Handlers ---
+
+fn void handle_logs_get(webview::Webview w, char* id, cjson::CJson json) {
+    cjson::CJson logs_array = cjson::cJSON_CreateArray();
+    for (int i = 0; i < global_logs.count; i++) {
+        int idx = (global_logs.head - global_logs.count + i + 256) % 256;
+        LogEntry* entry = &global_logs.entries[idx];
+        cjson::CJson log_obj = cjson::cJSON_CreateObject();
+        cjson::cJSON_AddStringToObject(log_obj, "level", entry->level);
+        cjson::cJSON_AddStringToObject(log_obj, "message", entry->message);
+        cjson::cJSON_AddStringToObject(log_obj, "source", entry->source);
+        cjson::cJSON_AddNumberToObject(log_obj, "timestamp", (double)entry->timestamp);
+        cjson::cJSON_AddItemToArray(logs_array, log_obj);
+    }
+    char* str = cjson::cJSON_PrintUnformatted(logs_array);
+    webview::webview_return(w, id, 1, str);
+    libc::free(str);
+    cjson::cJSON_Delete(logs_array);
+}
+
+fn void handle_state_get(webview::Webview w, char* id, cjson::CJson json) {
+    cjson::CJson state_obj = cjson::cJSON_CreateObject();
+    
+    // Errors state
+    cjson::CJson errors_array = cjson::cJSON_CreateArray();
+    for (int i = 0; i < errors::global_errors.count; i++) {
+        errors::ErrorInfo* err = &errors::global_errors.entries[i];
+        cjson::CJson err_obj = cjson::cJSON_CreateObject();
+        cjson::cJSON_AddNumberToObject(err_obj, "code", (double)err->code);
+        cjson::cJSON_AddStringToObject(err_obj, "message", err->message);
+        cjson::cJSON_AddStringToObject(err_obj, "source", err->source);
+        cjson::cJSON_AddItemToArray(errors_array, err_obj);
+    }
+    cjson::cJSON_AddItemToObject(state_obj, "errors", errors_array);
+
+    // Registry state
+    cjson::CJson registry_obj = cjson::cJSON_CreateObject();
+    cjson::cJSON_AddNumberToObject(registry_obj, "method_count", (double)global_registry.count);
+    cjson::cJSON_AddItemToObject(state_obj, "registry", registry_obj);
+
+    char* str = cjson::cJSON_PrintUnformatted(state_obj);
+    webview::webview_return(w, id, 1, str);
+    libc::free(str);
+    cjson::cJSON_Delete(state_obj);
+}
+
 fn void handle_rpc_callback(char* id, char* req, void* arg) {
     webview::Webview w = (webview::Webview)arg;
 
@@ -137,6 +227,18 @@ fn void handle_rpc_callback(char* id, char* req, void* arg) {
     }
 
     char* method = cjson::cJSON_GetStringValue(method_item);
+
+    // Check for our new methods first
+    if (libc::strcmp((ZString)method, (ZString)"logs.get") == 0) {
+        handle_logs_get(w, id, json);
+        cjson::cJSON_Delete(json);
+        return;
+    }
+    if (libc::strcmp((ZString)method, (ZString)"state.get") == 0) {
+        handle_state_get(w, id, json);
+        cjson::cJSON_Delete(json);
+        return;
+    }
 
     for (int i = 0; i < global_registry.count; i++) {
         if (global_registry.active[i] &&

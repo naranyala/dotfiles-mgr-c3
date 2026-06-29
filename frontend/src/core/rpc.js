@@ -74,6 +74,7 @@ const workspace = {
     removeGroup: (wsId, groupId) => rpcCall('workspace.remove-group', wsId, groupId),
     addRepo: (wsId, groupId, repoName, repoPath) => rpcCall('workspace.add-repo', wsId, groupId, repoName, repoPath),
     removeRepo: (wsId, groupId, repoId) => rpcCall('workspace.remove-repo', wsId, groupId, repoId),
+    restoreRepo: (wsId, repoId) => rpcCall('workspace.restore-repo', wsId, repoId),
 };
 
 // --- Repo API ---
@@ -96,12 +97,24 @@ const system = {
     getSystemInfo: () => rpcCall('getSystemInfo'),
 };
 
+// --- Logs API ---
+const logs = {
+    get: () => rpcCall('logs.get'),
+};
+
+// --- State API ---
+const state = {
+    get: () => rpcCall('state.get'),
+};
+
 // --- Create global rpc object ---
 export const rpc = {
     call: rpcCall,
     workspace,
     repo,
     system,
+    logs,
+    state,
     getPendingCount: () => pendingCalls.size,
     cancelAll: () => {
         for (const [id, pending] of pendingCalls) {

@@ -106,7 +106,7 @@ fn void handle_repo_clone(webview::Webview w, char* id, cjson::CJson args) {
     char* url = cjson::cJSON_GetStringValue(url_item);
     
     char[1024] cmd;
-    libc::snprintf(&cmd[0], 1024, "cd %s && git clone %s 2>&1", &current_workspace[0], url);
+    libc::snprintf(&cmd[0], 1024, "cd %s && git clone --depth=1 %s 2>&1", &current_workspace[0], url);
     
     void* fp = popen(&cmd[0], "r");
     if (fp == null) {
@@ -235,7 +235,8 @@ fn void handle_repo_info(webview::Webview w, char* id, cjson::CJson args) {
     char* name = cjson::cJSON_GetStringValue(name_item);
     char[512] repo_path;
     if (name[0] == '/' || name[0] == '.' || name[0] == '~') {
-        libc::strncpy(&repo_path[0], name, 512);
+        libc::strncpy(&repo_path[0], name, 511);
+        repo_path[511] = 0;
     } else {
         libc::snprintf(&repo_path[0], 512, "%s/%s", (char*)&current_workspace[0], name);
     }
@@ -321,7 +322,8 @@ fn void handle_repo_tree(webview::Webview w, char* id, cjson::CJson args) {
     char* name = cjson::cJSON_GetStringValue(name_item);
     char[512] repo_path;
     if (name[0] == '/' || name[0] == '.' || name[0] == '~') {
-        libc::strncpy(&repo_path[0], name, 512);
+        libc::strncpy(&repo_path[0], name, 511);
+        repo_path[511] = 0;
     } else {
         libc::snprintf(&repo_path[0], 512, "%s/%s", (char*)&current_workspace[0], name);
     }
@@ -342,8 +344,8 @@ fn void handle_repo_tree(webview::Webview w, char* id, cjson::CJson args) {
             if (libgit2::git_commit_tree(&tree, commit) == 0) {
                 int count = libgit2::git_tree_entrycount(tree);
                 for (int i = 0; i < count; i++) {
-                    libgit2::GitTreeEntry entry;
-                    if (libgit2::git_tree_entry_byindex(&entry, tree, i) == 0) {
+                    libgit2::GitTreeEntry entry = libgit2::git_tree_entry_byindex(tree, (usz)i);
+                    if ((void*)entry != null) {
                         cjson::CJson item = cjson::cJSON_CreateObject();
                         cjson::cJSON_AddStringToObject(item, "name", libgit2::git_tree_entry_name(entry));
                         int type = libgit2::git_tree_entry_type(entry);
@@ -386,7 +388,8 @@ fn void handle_repo_file(webview::Webview w, char* id, cjson::CJson args) {
 
     char[512] repo_path;
     if (name[0] == '/' || name[0] == '.' || name[0] == '~') {
-        libc::strncpy(&repo_path[0], name, 512);
+        libc::strncpy(&repo_path[0], name, 511);
+        repo_path[511] = 0;
     } else {
         libc::snprintf(&repo_path[0], 512, "%s/%s", (char*)&current_workspace[0], name);
     }
@@ -399,7 +402,7 @@ fn void handle_repo_file(webview::Webview w, char* id, cjson::CJson args) {
 
     // Read from disk directly (read-only, no checkout needed)
     char[1024] full_path;
-    libc::snprintf(&full_path[0], 1024, "%s/%s", repo_path, file_path);
+    libc::snprintf(&full_path[0], 1024, "%s/%s", (char*)&repo_path[0], file_path);
 
     void* f = libc::fopen((ZString)&full_path[0], "r");
     if (f == null) {
@@ -447,7 +450,8 @@ fn void handle_repo_history(webview::Webview w, char* id, cjson::CJson args) {
     char* name = cjson::cJSON_GetStringValue(name_item);
     char[512] repo_path;
     if (name[0] == '/' || name[0] == '.' || name[0] == '~') {
-        libc::strncpy(&repo_path[0], name, 512);
+        libc::strncpy(&repo_path[0], name, 511);
+        repo_path[511] = 0;
     } else {
         libc::snprintf(&repo_path[0], 512, "%s/%s", (char*)&current_workspace[0], name);
     }
@@ -527,7 +531,8 @@ fn void handle_repo_branches(webview::Webview w, char* id, cjson::CJson args) {
     char* name = cjson::cJSON_GetStringValue(name_item);
     char[512] repo_path;
     if (name[0] == '/' || name[0] == '.' || name[0] == '~') {
-        libc::strncpy(&repo_path[0], name, 512);
+        libc::strncpy(&repo_path[0], name, 511);
+        repo_path[511] = 0;
     } else {
         libc::snprintf(&repo_path[0], 512, "%s/%s", (char*)&current_workspace[0], name);
     }
@@ -598,7 +603,8 @@ fn void handle_repo_search(webview::Webview w, char* id, cjson::CJson args) {
 
     char[512] repo_path;
     if (name[0] == '/' || name[0] == '.' || name[0] == '~') {
-        libc::strncpy(&repo_path[0], name, 512);
+        libc::strncpy(&repo_path[0], name, 511);
+        repo_path[511] = 0;
     } else {
         libc::snprintf(&repo_path[0], 512, "%s/%s", (char*)&current_workspace[0], name);
     }

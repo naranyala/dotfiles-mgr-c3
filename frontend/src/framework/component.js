@@ -1,14 +1,48 @@
-import { createEffect } from './signals.js';
+import { createEffect, createSignal } from './signals.js';
 import { ComponentError, logError, ErrorLevels } from '../core/errors.js';
 
 export class ReactiveElement extends HTMLElement {
     #cleanup = null;
     #mounted = false;
     #renderError = null;
+    #propertiesSignals = new Map();
 
     constructor() {
         super();
         this.attachShadow({ mode: 'open' });
+        this._setupProperties();
+    }
+
+    _setupProperties() {
+        const props = this.constructor.properties || {};
+        for (const [prop, config] of Object.entries(props)) {
+            const isConfig = typeof config === 'object' && config !== null;
+            const defaultValue = isConfig ? config.default : undefined;
+            const attributeName = isConfig ? prop : config;
+
+            const [get, set] = createSignal(defaultValue);
+            this.#propertiesSignals.set(prop, { get, set });
+
+            Object.defineProperty(this, prop, {
+                get: () => get(),
+                set: (val) => {
+                    const current = get();
+                    if (current !== val) {
+                        set(val);
+                        this.setAttribute(attributeName, val);
+                    }
+                },
+                configurable: true,
+                enumerable: true
+            });
+        }
+    }
+
+    _setupStyles() {
+        const styles = this.constructor.styles;
+        if (styles && this.shadowRoot) {
+            this.shadowRoot.adoptedStyleSheets = [styles];
+        }
     }
 
     get root() {
@@ -19,8 +53,29 @@ export class ReactiveElement extends HTMLElement {
         return this.#mounted;
     }
 
+    static get observedAttributes() {
+        return this.properties ? Object.values(this.properties) : [];
+    }
+
+    attributeChangedCallback(name, oldValue, newValue) {
+        if (oldValue !== newValue && this.constructor.properties) {
+            const props = this.constructor.properties;
+            const propName = Object.keys(props).find(k => 
+                (typeof props[k] === 'string' ? props[k] === name : k === name)
+            );
+            
+            if (propName) {
+                const signal = this.#propertiesSignals.get(propName);
+                if (signal) {
+                    signal.set(newValue);
+                }
+            }
+        }
+    }
+
     connectedCallback() {
         this.#mounted = true;
+        this._setupStyles();
         try {
             this.#cleanup = createEffect(() => {
                 try {

@@ -62,8 +62,8 @@ extern fn int git_commit_free(GitCommit commit);
 // Tree
 extern fn int git_commit_tree(GitTree* out, GitCommit commit);
 extern fn int git_tree_entrycount(GitTree tree);
-extern fn int git_tree_entry_byindex(GitTreeEntry* out, GitTree tree, int idx);
-extern fn int git_tree_entry_byname(GitTreeEntry* out, GitTree tree, char* filename);
+extern fn GitTreeEntry git_tree_entry_byindex(GitTree tree, usz idx);
+extern fn GitTreeEntry git_tree_entry_byname(GitTree tree, char* filename);
 extern fn char* git_tree_entry_name(GitTreeEntry entry);
 extern fn int git_tree_entry_type(GitTreeEntry entry);
 extern fn GitOid* git_tree_entry_id(GitTreeEntry entry);
@@ -84,7 +84,7 @@ extern fn int git_diff_free(GitDiff diff);
 
 // Status
 extern fn int git_status_list_new(void** out, GitRepository repo, GitStatusOptions* opts);
-extern fn int git_status_byindex(void** out, void* statuslist, int idx);
+extern fn void* git_status_byindex(void* statuslist, usz idx);
 extern fn int git_status_list_free(void* statuslist);
 
 // Config
@@ -95,7 +95,7 @@ extern fn int git_config_free(GitConfig cfg);
 // Index (read-only)
 extern fn int git_repository_index(void** out, GitRepository repo);
 extern fn int git_index_entrycount(void* index);
-extern fn int git_index_get_byindex(void** out, void* index, int n);
+extern fn void* git_index_get_byindex(void* index, usz n);
 extern fn int git_index_free(void* index);
 
 // Types

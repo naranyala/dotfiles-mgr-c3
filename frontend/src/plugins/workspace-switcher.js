@@ -100,6 +100,15 @@ async function removeRepo(wsId, groupId, repoId) {
     }
 }
 
+async function restoreRepo(wsId, repoId) {
+    try {
+        await rpc.call('workspace.restore-repo', wsId, repoId);
+        await selectWorkspace(wsId);
+    } catch (err) {
+        console.error('Failed to restore repo:', err);
+    }
+}
+
 // --- Components ---
 
 class WorkspaceSwitcher extends ReactiveElement {
@@ -166,7 +175,7 @@ class WorkspaceSwitcher extends ReactiveElement {
                     <span class="ws-name">${ws.name}</span>
                     <button class="ws-delete" data-id="${ws.id}">x</button>
                 </div>
-            `).join('')}
+            `)}
         `;
     }
 
@@ -274,6 +283,7 @@ class WorkspaceEditor extends ReactiveElement {
         if (!ws) return html``;
 
         const groups = ws.groups || [];
+        const removed = ws.removed || [];
         const addingTo = this.#addingTo[0]();
 
         return html`
@@ -351,6 +361,47 @@ class WorkspaceEditor extends ReactiveElement {
                     font-size: 12px;
                 }
                 .btn-add-repo:hover { background: #43A047; }
+                .removed-section {
+                    margin-top: 16px;
+                    padding: 12px;
+                    background: #1e1e2e;
+                    border-radius: 8px;
+                    border-left: 3px solid #f39c12;
+                }
+                .removed-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    margin-bottom: 8px;
+                }
+                .removed-title { font-size: 12px; color: #f39c12; }
+                .removed-badge {
+                    font-size: 9px;
+                    padding: 1px 5px;
+                    background: #333;
+                    border-radius: 3px;
+                    color: #aaa;
+                }
+                .removed-repo {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    padding: 5px 0;
+                    font-size: 12px;
+                    border-top: 1px solid #2a2a35;
+                }
+                .removed-name { color: #888; font-family: monospace; text-decoration: line-through; }
+                .removed-from { font-size: 10px; color: #666; margin-left: 4px; }
+                .btn-restore {
+                    padding: 2px 8px;
+                    background: #333;
+                    border: 1px solid #444;
+                    border-radius: 4px;
+                    color: #4CAF50;
+                    cursor: pointer;
+                    font-size: 10px;
+                }
+                .btn-restore:hover { background: #1e3a1e; border-color: #4CAF50; }
             </style>
             <div class="section-header">
                 <span class="section-title">Repo Groups</span>
@@ -373,7 +424,7 @@ class WorkspaceEditor extends ReactiveElement {
                                 <button class="btn-small btn-remove-repo" data-group="${group.id}" data-repo="${repo.id}">x</button>
                             </div>
                         </div>
-                    `).join('')}
+                    `)}
                     ${addingTo() === group.id ? html`
                         <div class="input-row">
                             <input class="input" placeholder="name" id="repo-name-${group.id}" />
@@ -382,7 +433,24 @@ class WorkspaceEditor extends ReactiveElement {
                         </div>
                     ` : ''}
                 </div>
-            `).join('')}
+            `)}
+            ${removed.length > 0 ? html`
+                <div class="removed-section">
+                    <div class="removed-header">
+                        <span class="removed-title">Recently Removed</span>
+                        <span class="removed-badge">${removed.length}</span>
+                    </div>
+                    ${removed.map(repo => html`
+                        <div class="removed-repo">
+                            <div>
+                                <span class="removed-name">${repo.name}</span>
+                                ${repo.groupId ? html`<span class="removed-from">(from group)</span>` : ''}
+                            </div>
+                            <button class="btn-restore btn-do-restore" data-repo="${repo.id}">Undo</button>
+                        </div>
+                    `)}
+                </div>
+            ` : ''}
         `;
     }
 
@@ -424,6 +492,12 @@ class WorkspaceEditor extends ReactiveElement {
         this.root.querySelectorAll('.btn-remove-repo').forEach(btn => {
             btn.addEventListener('click', () => {
                 removeRepo(ws.id, btn.dataset.group, btn.dataset.repo);
+            });
+        });
+
+        this.root.querySelectorAll('.btn-do-restore').forEach(btn => {
+            btn.addEventListener('click', () => {
+                restoreRepo(ws.id, btn.dataset.repo);
             });
         });
     }

@@ -3,6 +3,8 @@ import { SignalError, logError } from '../core/errors.js';
 let activeEffect = null;
 let batchQueue = null;
 
+const contextMap = new WeakMap();
+
 export function createSignal(initialValue) {
     let value = initialValue;
     const subscribers = new Set();
@@ -96,6 +98,50 @@ export function untrack(fn) {
     } finally {
         activeEffect = prev;
     }
+}
+
+export function createResource(fetcher, initialValue = null) {
+    const [data, setData] = createSignal(initialValue);
+    const [loading, setLoading] = createSignal(false);
+    const [error, setError] = createSignal(null);
+
+    const fetch = async (...args) => {
+        setLoading(true);
+        setError(null);
+        try {
+            const result = await fetcher(...args);
+            setData(result);
+        } catch (err) {
+            setError(err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return [data, { loading, error, fetch }];
+}
+
+/**
+ * Context API
+ */
+
+export function provideContext(element, key, value) {
+    if (!contextMap.has(element)) {
+        contextMap.set(element, new Map());
+    }
+    contextMap.get(element).set(key, value);
+}
+
+export function useContext(element, key) {
+    let current = element;
+    while (current) {
+        const contexts = contextMap.get(current);
+        if (contexts && contexts.has(key)) {
+            return contexts.get(key);
+        }
+        current = current.parentElement;
+    }
+    return undefined;
 }
 
 class Effect {

@@ -362,7 +362,7 @@ fn void handle_workspace_add_repo(webview::Webview w, char* id, cjson::CJson arg
     cjson::cJSON_Delete(workspaces);
 }
 
-// workspace.remove-repo - Remove a repo from a group
+// workspace.remove-repo - Soft-remove a repo from a group (moves to removed list for undo)
 fn void handle_workspace_remove_repo(webview::Webview w, char* id, cjson::CJson args) {
     if ((void*)args == null || cjson::cJSON_GetArraySize(args) < 4) {
         webview::webview_return(w, id, 1, "{\"error\": \"Missing arguments: [wsId, groupId, repoId]\"}");
@@ -392,6 +392,13 @@ fn void handle_workspace_remove_repo(webview::Webview w, char* id, cjson::CJson 
         return;
     }
 
+    // Ensure "removed" array exists at workspace level
+    cjson::CJson removed = cjson::cJSON_GetObjectItem(ws, "removed");
+    if ((void*)removed == null) {
+        removed = cjson::cJSON_CreateArray();
+        cjson::cJSON_AddItemToObject(ws, "removed", removed);
+    }
+
     cjson::CJson groups = cjson::cJSON_GetObjectItem(ws, "groups");
     if ((void*)groups != null) {
         int group_count = cjson::cJSON_GetArraySize(groups);
@@ -408,6 +415,12 @@ fn void handle_workspace_remove_repo(webview::Webview w, char* id, cjson::CJson 
                             cjson::CJson rid = cjson::cJSON_GetObjectItem(repo, "id");
                             if ((void*)rid != null && cjson::cJSON_IsString(rid)) {
                                 if (libc::strcmp((ZString)(cjson::cJSON_GetStringValue(rid)), (ZString)(repo_id)) == 0) {
+                                    // Clone the repo object and add groupId for restore
+                                    cjson::CJson removed_repo = cjson::cJSON_Duplicate(repo, 1);
+                                    cjson::cJSON_AddStringToObject(removed_repo, "groupId", group_id);
+                                    cjson::cJSON_AddItemToArray(removed, removed_repo);
+
+                                    // Delete from group
                                     cjson::cJSON_DeleteItemFromArray(repos, j);
                                     save_workspaces(workspaces);
                                     webview::webview_return(w, id, 0, "{\"ok\": true}");
@@ -425,6 +438,107 @@ fn void handle_workspace_remove_repo(webview::Webview w, char* id, cjson::CJson 
     webview::webview_return(w, id, 1, "{\"error\": \"Repo not found\"}");
     cjson::cJSON_Delete(workspaces);
 }
+
+// workspace.restore-repo - Restore a soft-removed repo back to its original group
+fn void handle_workspace_restore_repo(webview::Webview w, char* id, cjson::CJson args) {
+    if ((void*)args == null || cjson::cJSON_GetArraySize(args) < 3) {
+        webview::webview_return(w, id, 1, "{\"error\": \"Missing arguments: [wsId, repoId]\"}");
+        return;
+    }
+
+    cjson::CJson ws_id_item = cjson::cJSON_GetArrayItem(args, 1);
+    cjson::CJson repo_id_item = cjson::cJSON_GetArrayItem(args, 2);
+
+    if (!cjson::cJSON_IsString(ws_id_item) || !cjson::cJSON_IsString(repo_id_item)) {
+        webview::webview_return(w, id, 1, "{\"error\": \"All arguments must be strings\"}");
+        return;
+    }
+
+    char* ws_id = cjson::cJSON_GetStringValue(ws_id_item);
+    char* repo_id = cjson::cJSON_GetStringValue(repo_id_item);
+
+    cjson::CJson workspaces = load_workspaces();
+    cjson::CJson ws = find_workspace(workspaces, ws_id);
+
+    if ((void*)ws == null) {
+        webview::webview_return(w, id, 1, "{\"error\": \"Workspace not found\"}");
+        cjson::cJSON_Delete(workspaces);
+        return;
+    }
+
+    cjson::CJson removed = cjson::cJSON_GetObjectItem(ws, "removed");
+    if ((void*)removed == null) {
+        webview::webview_return(w, id, 1, "{\"error\": \"No removed repos\"}");
+        cjson::cJSON_Delete(workspaces);
+        return;
+    }
+
+    int removed_count = cjson::cJSON_GetArraySize(removed);
+    for (int i = 0; i < removed_count; i++) {
+        cjson::CJson repo = cjson::cJSON_GetArrayItem(removed, i);
+        cjson::CJson rid = cjson::cJSON_GetObjectItem(repo, "id");
+        if ((void*)rid != null && cjson::cJSON_IsString(rid)) {
+            if (libc::strcmp((ZString)(cjson::cJSON_GetStringValue(rid)), (ZString)(repo_id)) == 0) {
+                // Get the original groupId
+                cjson::CJson gid = cjson::cJSON_GetObjectItem(repo, "groupId");
+                char* target_group_id = (void*)gid != null && cjson::cJSON_IsString(gid)
+                    ? cjson::cJSON_GetStringValue(gid) : null;
+
+                // Find the target group
+                cjson::CJson groups = cjson::cJSON_GetObjectItem(ws, "groups");
+                cjson::CJson target_group = (cjson::CJson)null;
+                if ((void*)groups != null && target_group_id != null) {
+                    int gc = cjson::cJSON_GetArraySize(groups);
+                    for (int g = 0; g < gc; g++) {
+                        cjson::CJson grp = cjson::cJSON_GetArrayItem(groups, g);
+                        cjson::CJson gid_field = cjson::cJSON_GetObjectItem(grp, "id");
+                        if ((void*)gid_field != null && cjson::cJSON_IsString(gid_field)) {
+                            if (libc::strcmp((ZString)(cjson::cJSON_GetStringValue(gid_field)), (ZString)(target_group_id)) == 0) {
+                                target_group = grp;
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                // If target group not found, put into first group
+                if ((void*)target_group == null && (void*)groups != null && cjson::cJSON_GetArraySize(groups) > 0) {
+                    target_group = cjson::cJSON_GetArrayItem(groups, 0);
+                }
+
+                if ((void*)target_group == null) {
+                    webview::webview_return(w, id, 1, "{\"error\": \"No groups to restore into\"}");
+                    cjson::cJSON_Delete(workspaces);
+                    return;
+                }
+
+                // Remove groupId before restoring
+                cjson::cJSON_DeleteItemFromObject(repo, "groupId");
+
+                // Add repo back to the group
+                cjson::CJson repos = cjson::cJSON_GetObjectItem(target_group, "repos");
+                if ((void*)repos == null) {
+                    repos = cjson::cJSON_CreateArray();
+                    cjson::cJSON_AddItemToObject(target_group, "repos", repos);
+                }
+                cjson::cJSON_AddItemToArray(repos, repo);
+
+                // Remove from the removed list (use detach so repo isn't freed)
+                cjson::CJson detached = cjson::cJSON_DetachItemFromArray(removed, i);
+                cjson::cJSON_Delete(detached);
+
+                save_workspaces(workspaces);
+                webview::webview_return(w, id, 0, "{\"ok\": true}");
+                cjson::cJSON_Delete(workspaces);
+                return;
+            }
+        }
+    }
+
+    webview::webview_return(w, id, 1, "{\"error\": \"Repo not found in removed list\"}");
+    cjson::cJSON_Delete(workspaces);
+}
+
 
 // workspace.get - Get full workspace details
 fn void handle_workspace_get(webview::Webview w, char* id, cjson::CJson args) {
@@ -524,6 +638,9 @@ fn int init() {
     if (rc != errors::ERR_OK) return rc;
 
     rc = core::rpc::register("workspace.remove-repo", &handle_workspace_remove_repo);
+    if (rc != errors::ERR_OK) return rc;
+
+    rc = core::rpc::register("workspace.restore-repo", &handle_workspace_restore_repo);
     if (rc != errors::ERR_OK) return rc;
 
     return errors::ERR_OK;

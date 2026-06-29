@@ -3,35 +3,16 @@ import { ReactiveElement } from '../framework/component.js';
 import { html } from '../framework/template.js';
 import { PluginManager } from '../core/plugin-system.js';
 import '../core/rpc.js';
+import * as monaco from 'monaco-editor';
 
-// --- All repos from ./examples/repos ---
-
-const ALL_REPOS = [
-    { name: 'basic-commits', path: './examples/repos/basic-commits', type: 'local' },
-    { name: 'initial-commit-only', path: './examples/repos/initial-commit-only', type: 'local' },
-    { name: 'empty-repo', path: './examples/repos/empty-repo', type: 'local' },
-    { name: 'multiple-branches', path: './examples/repos/multiple-branches', type: 'local' },
-    { name: 'merge-conflicts', path: './examples/repos/merge-conflicts', type: 'local' },
-    { name: 'rebase-history', path: './examples/repos/rebase-history', type: 'local' },
-    { name: 'complex-history', path: './examples/repos/complex-history', type: 'local' },
-    { name: 'orphan-branches', path: './examples/repos/orphan-branches', type: 'local' },
-    { name: 'tags-releases', path: './examples/repos/tags-releases', type: 'local' },
-    { name: 'cherry-pick-history', path: './examples/repos/cherry-pick-history', type: 'local' },
-    { name: 'detached-head', path: './examples/repos/detached-head', type: 'local' },
-    { name: 'submodule-repo', path: './examples/repos/submodule-repo', type: 'local' },
-    { name: 'bare-repo.git', path: './examples/repos/bare-repo.git', type: 'local' },
-    { name: 'shallow-clone', path: './examples/repos/shallow-clone', type: 'local' },
-    { name: 'gitignore-patterns', path: './examples/repos/gitignore-patterns', type: 'local' },
-    { name: 'large-files', path: './examples/repos/large-files', type: 'local' },
-    { name: 'nested-dirs', path: './examples/repos/nested-dirs', type: 'local' },
-    { name: 'signed-commits', path: './examples/repos/signed-commits', type: 'local' },
-    { name: 'worktree-demo', path: './examples/repos/worktree-demo', type: 'local' },
-    { name: 'dotfiles-collection', path: './examples/repos/dotfiles-collection', type: 'local' },
-];
-
+self.MonacoEnvironment = {
+    getWorkerUrl: function (moduleId, label) {
+        return './editor.worker.js';
+    }
+};
 // --- State ---
 
-const [repoList, setRepoList] = createSignal(ALL_REPOS);
+const [repoList, setRepoList] = createSignal([]);
 const [selectedRepo, setSelectedRepo] = createSignal(null);
 const [repoInfo, setRepoInfo] = createSignal(null);
 const [fileTree, setFileTree] = createSignal([]);
@@ -42,8 +23,33 @@ const [branches, setBranches] = createSignal([]);
 const [viewMode, setViewMode] = createSignal('files');
 const [loading, setLoading] = createSignal(false);
 const [error, setError] = createSignal(null);
+const [showCloneModal, setShowCloneModal] = createSignal(false);
+const [cloning, setCloning] = createSignal(false);
 
 // --- API ---
+
+async function fetchRepos() {
+    try {
+        const repos = await rpc.repo.list();
+        setRepoList(repos || []);
+    } catch (err) {
+        console.error('Failed to fetch repos:', err);
+    }
+}
+
+async function cloneRepo(url) {
+    setCloning(true);
+    setError(null);
+    try {
+        await rpc.repo.clone(url);
+        await fetchRepos();
+        setShowCloneModal(false);
+    } catch (err) {
+        setError(err?.error || err?.message || 'Clone failed');
+    } finally {
+        setCloning(false);
+    }
+}
 
 async function selectRepo(repo) {
     setSelectedRepo(repo);
@@ -54,10 +60,10 @@ async function selectRepo(repo) {
     setError(null);
     try {
         const [info, tree, hist, br] = await Promise.all([
-            rpc.call('repo.info', repo.path).catch(() => null),
-            rpc.call('repo.tree', repo.path).catch(() => []),
-            rpc.call('repo.history', repo.path).catch(() => []),
-            rpc.call('repo.branches', repo.path).catch(() => []),
+            rpc.repo.info(repo.path).catch(() => null),
+            rpc.repo.tree(repo.path).catch(() => []),
+            rpc.repo.history(repo.path).catch(() => []),
+            rpc.repo.branches(repo.path).catch(() => []),
         ]);
         setRepoInfo(info || { name: repo.name, path: repo.path });
         setFileTree(tree || []);
@@ -76,7 +82,7 @@ async function openFile(path) {
     setLoading(true);
     setError(null);
     try {
-        const result = await rpc.call('repo.file', repo.path, path);
+        const result = await rpc.repo.file(repo.path, path);
         setSelectedFile(path);
         setFileContent(result);
     } catch (err) {
@@ -92,11 +98,40 @@ class RepoSidebar extends ReactiveElement {
     render() {
         const current = selectedRepo();
         const repos = repoList();
+        const isCloning = cloning();
 
         return html`
             <style>
-                :host { display: block; overflow-y: auto; height: 100%; }
-                .header { padding: 8px 12px; border-bottom: 1px solid #2a2a35; font-size: 11px; color: #666; text-transform: uppercase; letter-spacing: 1px; }
+                :host { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
+                .header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    padding: 8px 12px;
+                    border-bottom: 1px solid #2a2a35;
+                    font-size: 11px;
+                    color: #666;
+                    text-transform: uppercase;
+                    letter-spacing: 1px;
+                    flex-shrink: 0;
+                }
+                .header-right { display: flex; gap: 4px; align-items: center; }
+                .btn-icon {
+                    width: 20px;
+                    height: 20px;
+                    border: none;
+                    background: #333;
+                    color: #888;
+                    border-radius: 4px;
+                    cursor: pointer;
+                    font-size: 13px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    flex-shrink: 0;
+                }
+                .btn-icon:hover { background: #444; color: #fff; }
+                .repo-list { flex: 1; overflow-y: auto; }
                 .repo-item {
                     display: flex; align-items: center; padding: 5px 12px; cursor: pointer;
                     transition: background 0.15s; gap: 8px;
@@ -105,14 +140,25 @@ class RepoSidebar extends ReactiveElement {
                 .repo-item.active { background: #1e3a1e; border-left: 2px solid #4CAF50; }
                 .icon { width: 14px; text-align: center; font-size: 11px; color: #4CAF50; flex-shrink: 0; }
                 .name { font-size: 12px; color: #e0e0e0; font-family: monospace; }
+                .empty { color: #555; font-size: 11px; padding: 20px; text-align: center; }
             </style>
-            <div class="header">Repos (${repos.length})</div>
-            ${repos.map(r => html`
-                <div class="repo-item ${r.path === current?.path ? 'active' : ''}" data-path="${r.path}">
-                    <span class="icon">.</span>
-                    <span class="name">${r.name}</span>
+            <div class="header">
+                <span>Repos (${repos.length})</span>
+                <div class="header-right">
+                    <button class="btn-icon" id="btn-refresh" title="Refresh">&#x21bb;</button>
+                    <button class="btn-icon" id="btn-clone" title="Clone repo">+</button>
                 </div>
-            `).join('')}
+            </div>
+            <div class="repo-list">
+                ${repos.length === 0 ? html`<div class="empty">No repos found</div>` : ''}
+                ${repos.map(r => html`
+                    <div class="repo-item ${r.path === current?.path ? 'active' : ''}" data-path="${r.path}">
+                        <span class="icon">&#x2022;</span>
+                        <span class="name">${r.name}</span>
+                    </div>
+                `)}
+            </div>
+            <clone-modal></clone-modal>
         `;
     }
 
@@ -124,6 +170,141 @@ class RepoSidebar extends ReactiveElement {
                 if (repo) selectRepo(repo);
             });
         });
+
+        this.root.querySelector('#btn-clone')?.addEventListener('click', () => {
+            setShowCloneModal(true);
+        });
+
+        this.root.querySelector('#btn-refresh')?.addEventListener('click', () => {
+            fetchRepos();
+        });
+    }
+}
+
+class CloneModal extends ReactiveElement {
+    render() {
+        if (!showCloneModal()) return html``;
+        const isCloning = cloning();
+        const err = error();
+
+        return html`
+            <style>
+                :host {
+                    position: fixed;
+                    top: 0; left: 0; right: 0; bottom: 0;
+                    background: rgba(0,0,0,0.6);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    z-index: 200;
+                }
+                .modal {
+                    background: #1e1e2e;
+                    border-radius: 12px;
+                    padding: 24px;
+                    width: 400px;
+                    max-width: 90vw;
+                }
+                .modal-title {
+                    font-size: 16px;
+                    font-weight: 600;
+                    color: #fff;
+                    margin-bottom: 8px;
+                }
+                .modal-desc {
+                    font-size: 12px;
+                    color: #888;
+                    margin-bottom: 16px;
+                }
+                .input {
+                    width: 100%;
+                    padding: 10px 12px;
+                    background: #2a2a35;
+                    border: 1px solid #333;
+                    border-radius: 6px;
+                    color: #e0e0e0;
+                    font-size: 14px;
+                    font-family: monospace;
+                    outline: none;
+                    margin-bottom: 12px;
+                    box-sizing: border-box;
+                }
+                .input:focus { border-color: #4CAF50; }
+                .input:disabled { opacity: 0.5; }
+                .error-msg {
+                    font-size: 12px;
+                    color: #e74c3c;
+                    margin-bottom: 12px;
+                    padding: 8px;
+                    background: #2d1b1b;
+                    border-radius: 4px;
+                }
+                .actions { display: flex; gap: 8px; justify-content: flex-end; }
+                .btn {
+                    padding: 8px 16px;
+                    border: none;
+                    border-radius: 6px;
+                    font-size: 13px;
+                    cursor: pointer;
+                }
+                .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+                .btn-cancel { background: #333; color: #ccc; }
+                .btn-cancel:hover:not(:disabled) { background: #444; }
+                .btn-clone { background: #4CAF50; color: #fff; }
+                .btn-clone:hover:not(:disabled) { background: #43A047; }
+                .spinner {
+                    display: inline-block;
+                    width: 12px;
+                    height: 12px;
+                    border: 2px solid #fff;
+                    border-top-color: transparent;
+                    border-radius: 50%;
+                    animation: spin 0.6s linear infinite;
+                    margin-right: 6px;
+                    vertical-align: middle;
+                }
+                @keyframes spin { to { transform: rotate(360deg); } }
+            </style>
+            <div class="modal">
+                <div class="modal-title">Clone Repository</div>
+                <div class="modal-desc">Enter a git repository URL to clone into the current workspace</div>
+                ${err ? html`<div class="error-msg">${err}</div>` : ''}
+                <input
+                    class="input"
+                    placeholder="https://github.com/user/repo.git"
+                    id="clone-url"
+                    autofocus
+                    ${isCloning ? 'disabled' : ''}
+                />
+                <div class="actions">
+                    <button class="btn btn-cancel" id="btn-cancel" ${isCloning ? 'disabled' : ''}>Cancel</button>
+                    <button class="btn btn-clone" id="btn-do-clone" ${isCloning ? 'disabled' : ''}>
+                        ${isCloning ? html`<span class="spinner"></span>Cloning...` : 'Clone'}
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+
+    setupEvents() {
+        this.root.querySelector('#btn-cancel')?.addEventListener('click', () => {
+            setShowCloneModal(false);
+        });
+
+        this.root.querySelector('#btn-do-clone')?.addEventListener('click', () => {
+            const url = this.root.querySelector('#clone-url')?.value?.trim();
+            if (url) cloneRepo(url);
+        });
+
+        this.root.querySelector('#clone-url')?.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                const url = e.target.value?.trim();
+                if (url) cloneRepo(url);
+            }
+            if (e.key === 'Escape') {
+                setShowCloneModal(false);
+            }
+        });
     }
 }
 
@@ -131,6 +312,7 @@ class FileTree extends ReactiveElement {
     render() {
         const tree = fileTree();
         const current = selectedFile();
+        console.log('FileTree render, tree:', tree);
         return html`
             <style>
                 :host { display: block; }
@@ -148,7 +330,7 @@ class FileTree extends ReactiveElement {
                     <span class="icon ${f.type}">${f.type === 'dir' ? '/' : '.'}</span>
                     <span class="name">${f.name}</span>
                 </div>
-            `).join('')}
+            `)}
         `;
     }
     setupEvents() {
@@ -159,25 +341,62 @@ class FileTree extends ReactiveElement {
 }
 
 class FileViewer extends ReactiveElement {
+    #editor = null;
+
     render() {
-        const content = fileContent();
-        const file = selectedFile();
-        if (!file) return html`<style>:host{display:flex;align-items:center;justify-content:center;height:100%}.e{color:#555;font-size:13px}</style><div class="e">Select a file to view</div>`;
-        const lines = (content?.content || '').split('\n');
         return html`
             <style>
-                :host { display: flex; flex-direction: column; height: 100%; }
+                :host { display: flex; flex-direction: column; height: 100%; position: relative; }
                 .hdr { display: flex; justify-content: space-between; padding: 6px 12px; background: #1a1a24; border-bottom: 1px solid #2a2a35; }
                 .fn { font-family: monospace; font-size: 12px; color: #e0e0e0; }
                 .meta { font-size: 11px; color: #666; }
-                .code { padding: 12px; overflow: auto; flex: 1; background: #121218; }
-                .line { display: flex; font-family: monospace; font-size: 12px; line-height: 1.6; }
-                .ln { color: #444; width: 40px; text-align: right; padding-right: 12px; user-select: none; flex-shrink: 0; }
-                .lc { color: #e0e0e0; white-space: pre; }
+                .code { flex: 1; overflow: hidden; background: #121218; }
+                .e { position: absolute; inset: 0; background: #121218; display: flex; align-items: center; justify-content: center; color: #555; font-size: 13px; z-index: 10; }
             </style>
-            <div class="hdr"><span class="fn">${file}</span><span class="meta">${content?.size || 0} bytes</span></div>
-            <div class="code">${lines.map((l, i) => html`<div class="line"><span class="ln">${i + 1}</span><span class="lc">${l}</span></div>`).join('')}</div>
+            ${() => {
+                const file = selectedFile();
+                const content = fileContent();
+                if (!file) return html`<div class="e">Select a file to view</div>`;
+                return html`<div class="hdr"><span class="fn">${file}</span><span class="meta">${content?.size || 0} bytes</span></div>`;
+            }}
+            <div class="code" id="editor-container"></div>
         `;
+    }
+
+    setupEvents() {
+        const container = this.root.querySelector('#editor-container');
+        if (!this.#editor && container) {
+            this.#editor = monaco.editor.create(container, {
+                value: '',
+                theme: 'vs-dark',
+                readOnly: true,
+                automaticLayout: true,
+                minimap: { enabled: false },
+                scrollBeyondLastLine: false,
+                fixedOverflowWidgets: true
+            });
+            
+            // Effect to update editor content when fileContent changes
+            createEffect(() => {
+                const content = fileContent();
+                if (this.#editor && content) {
+                    this.#editor.setValue(content.content || '');
+                    // Basic language detection based on extension
+                    const ext = (content.path || '').split('.').pop();
+                    const langMap = { js: 'javascript', ts: 'typescript', html: 'html', css: 'css', json: 'json', md: 'markdown', c3: 'c' };
+                    monaco.editor.setModelLanguage(this.#editor.getModel(), langMap[ext] || 'plaintext');
+                } else if (this.#editor) {
+                    this.#editor.setValue('');
+                }
+            });
+        }
+    }
+
+    onUnmount() {
+        if (this.#editor) {
+            this.#editor.dispose();
+            this.#editor = null;
+        }
     }
 }
 
@@ -199,7 +418,7 @@ class HistoryView extends ReactiveElement {
                     <div class="msg">${c.message}</div>
                     <div class="meta"><span class="id">${c.id?.slice(0, 7)}</span><span>${c.author}</span></div>
                 </div>
-            `).join('')}
+            `)}
         `;
     }
 }
@@ -222,7 +441,7 @@ class BranchList extends ReactiveElement {
                     <span class="name">${b.name}</span>
                     ${b.current ? html`<span class="badge">HEAD</span>` : ''}
                 </div>
-            `).join('')}
+            `)}
         `;
     }
 }
@@ -235,7 +454,7 @@ class RepoViewer extends ReactiveElement {
         const err = error();
         if (!repo) return html`
             <style>:host{display:flex;align-items:center;justify-content:center;height:100%}.e{color:#555;text-align:center}.e h2{font-size:18px;color:#666;margin-bottom:8px}.e p{font-size:13px}</style>
-            <div class="e"><h2>Select a Repository</h2><p>Choose from the sidebar</p></div>
+            <div class="e"><h2>Select a Repository</h2><p>Choose from the sidebar or clone a new one</p></div>
         `;
         return html`
             <style>
@@ -275,6 +494,7 @@ class RepoViewer extends ReactiveElement {
 }
 
 customElements.define('repo-sidebar', RepoSidebar);
+customElements.define('clone-modal', CloneModal);
 customElements.define('repo-file-tree', FileTree);
 customElements.define('repo-file-viewer', FileViewer);
 customElements.define('repo-history', HistoryView);
@@ -282,3 +502,6 @@ customElements.define('repo-branches', BranchList);
 customElements.define('repo-viewer', RepoViewer);
 
 PluginManager.register('Repos', { name: 'Repos', render: () => html`<repo-viewer style="height:100%;display:flex"></repo-viewer>` });
+
+// Init: fetch repos on load
+fetchRepos();
