@@ -7,6 +7,7 @@ import features::system;
 import features::git;
 import features::workspace;
 import features::shell;
+import features::man;
 import features::sqlite;
 import libc;
 import std::io;
@@ -34,6 +35,9 @@ fn int main() {
 
     rc = features::sqlite::init();
     if (rc != errors::ERR_OK) io::printfn("Failed to register sqlite: %d", rc);
+
+    rc = features::man::init();
+    if (rc != errors::ERR_OK) io::printfn("Failed to register man: %d", rc);
 
     webview::Webview w = webview::webview_create(1, null);
     if (!w) {

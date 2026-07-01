@@ -1,6 +1,8 @@
 import { plugins, getPluginName } from './plugins.js'
 import { launchers } from './launchers.js'
 import * as health from '../plugins/health/index.js'
+import { renderHomepageGrid } from '../components/HomepageGrid.js'
+import { getCategorizedLaunchers } from './categories.js'
 
 export function renderTabBar(tabs, active) {
 	const hasCloseable = tabs.some(t => t.canClose)
@@ -27,16 +29,32 @@ export function renderTabContent(tabs, active, q, visible) {
 								${q ? '<button class="search-clear" id="btn-search-clear">✕</button>' : ''}
 							</div>
 						</div>
-						${visible.length > 0 ? '<div class="launcher-grid">' + visible.map(c =>
-								'<div class="launcher-item" data-open-tab="' + c.id + '">' +
-								'<div class="launcher-info">' +
-								'<div class="launcher-title">' + c.title + '</div>' +
-								'<div class="launcher-desc">' + c.desc + '</div>' +
-								'</div></div>').join('') + '</div>'
-							: '<div class="no-match">No features match &quot;' + q + '&quot;</div>'}
+						${visible.length > 0 ? (() => {
+								const groups = visible.reduce((acc, c) => {
+									acc[c.group] = acc[c.group] || [];
+									acc[c.group].push(c);
+									return acc;
+								}, {});
+								return Object.entries(groups).map(([group, items]) => `
+									<div class="menu-group">
+										<div class="menu-group-title">
+											<span>${group}</span>
+											<button class="btn-copy-group" data-copy-text="homepage > ${group}" title="Copy group path">📋</button>
+										</div>
+										<div class="launcher-grid">
+											${items.map(c =>
+																'<div class="launcher-item" data-open-tab="' + c.id + '">' +
+																'<div class="launcher-info">' +
+																'<div class="launcher-title">' + c.title + '</div>' +
+																'<div class="launcher-desc">' + c.desc + '</div>' +
+																'</div></div>').join('')}
+										</div>
+									</div>`).join('');
+								})()
+						: '<div class="no-match">No features match &quot;' + q + '&quot;</div>'}
 					`
 					: t.content()}
-
+				
 			</div>`).join('')}
 	</div>`
 }
@@ -79,15 +97,31 @@ export function renderBottomDrawer(bottomOpen, bottomTab) {
 		</div>
 		<div class="drawer-body">
 			${bottomTab === 'quick' ? `
-				<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px">
-					${launchers.filter(c => c.id !== 'dashboard').map(c => `
-						<div class="launcher-item" data-open-tab="${c.id}" style="padding:10px 14px">
-							<div class="launcher-info">
-								<div class="launcher-title" style="font-size:0.85rem">${c.title}</div>
-								<div class="launcher-desc" style="font-size:0.72rem">${c.desc}</div>
+				${(() => {
+					const filtered = launchers.filter(c => c.id !== 'dashboard');
+					const groups = filtered.reduce((acc, c) => {
+						acc[c.group] = acc[c.group] || [];
+						acc[c.group].push(c);
+						return acc;
+					}, {});
+					return Object.entries(groups).map(([group, items]) => `
+						<div class="menu-group">
+							<div class="menu-group-title">
+								<span>${group}</span>
+								<button class="btn-copy-group" data-copy-text="homepage > ${group}" title="Copy group path">📋</button>
 							</div>
-						</div>`).join('')}
-				</div>`
+							<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px">
+								${items.map(c => `
+									<div class="launcher-item" data-open-tab="${c.id}" style="padding:10px 14px">
+										<div class="launcher-info">
+											<div class="launcher-title" style="font-size:0.85rem">${c.title}</div>
+											<div class="launcher-desc" style="font-size:0.72rem">${c.desc}</div>
+										</div>
+									</div>`).join('')}
+							</div>
+						</div>`).join('');
+				})()}
+				`
 			: bottomTab === 'logs' ? `
 				<terminal-view style="height:100%;min-height:200px"></terminal-view>`
 			: `

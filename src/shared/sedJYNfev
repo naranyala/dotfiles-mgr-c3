@@ -1,0 +1,130 @@
+module shared::validation;
+import libc;
+import shared::utils;
+import shared::fs_utils;
+
+// Validation result structure
+struct ValidationResult {;
+    bool valid;
+    char* error;
+};
+
+// Create ok result
+fn ValidationResult validation_ok() {
+    return { .valid = true, .error = null };
+}
+
+// Create error result
+fn ValidationResult validation_error(char* error_msg) {
+    ValidationResult result;
+    result.valid = false;
+    result.error = error_msg != null ? utils::str_dup(error_msg) : null;
+    return result;
+}
+
+// Free validation result
+fn void validation_free(ValidationResult result) {
+    if (result.error != null) {
+        libc::free(result.error);
+    }
+}
+
+// Check if string is not empty
+fn ValidationResult validate_not_empty(char* value, char* field_name) {
+    if (value == null || value[0] == 0) {
+        char* msg = utils::str_cat(field_name, " cannot be empty");
+        return validation_error(msg);
+    }
+    return validation_ok();
+}
+
+// Check if string has minimum length
+fn ValidationResult validate_min_length(char* value, int min_len, char* field_name) {
+    if (value == null) {
+        char* msg = utils::str_cat(field_name, " is required");
+        return validation_error(msg);
+    }
+    int len = utils::str_len(value);
+    if (len < min_len) {
+        char[64] msg;
+        libc::snprintf(&msg[0], 64, "%s must be at least %d characters", field_name, min_len);
+        return validation_error(utils::str_dup(&msg[0]));
+    }
+    return validation_ok();
+}
+
+// Check if string has maximum length
+fn ValidationResult validate_max_length(char* value, int max_len, char* field_name) {
+    if (value == null) return validation_ok();
+    int len = utils::str_len(value);
+    if (len > max_len) {
+        char[64] msg;
+        libc::snprintf(&msg[0], 64, "%s must be at most %d characters", field_name, max_len);
+        return validation_error(utils::str_dup(&msg[0]));
+    }
+    return validation_ok();
+}
+
+// Check if integer is within range
+fn ValidationResult validate_int_range(int value, int min, int max, char* field_name) {
+    if (value < min || value > max) {
+        char[64] msg;
+        libc::snprintf(&msg[0], 64, "%s must be between %d and %d", field_name, min, max);
+        return validation_error(utils::str_dup(&msg[0]));
+    }
+    return validation_ok();
+}
+
+// Check if integer is positive
+fn ValidationResult validate_positive(int value, char* field_name) {
+    if (value <= 0) {
+        char* msg = utils::str_cat(field_name, " must be positive");
+        return validation_error(msg);
+    }
+    return validation_ok();
+}
+
+// Check if integer is non-negative
+fn ValidationResult validate_non_negative(int value, char* field_name) {
+    if (value < 0) {
+        char* msg = utils::str_cat(field_name, " must be non-negative");
+        return validation_error(msg);
+    }
+    return validation_ok();
+}
+
+// Validate file exists
+fn ValidationResult validate_file_exists(char* path, char* field_name) {
+    if (path == null || path[0] == 0) {
+        char* msg = utils::str_cat(field_name, " is required");
+        return validation_error(msg);
+    }
+    if (!fs_utils::file_exists(path)) {
+        char* msg = utils::str_cat(field_name, " file does not exist");
+        return validation_error(msg);
+    }
+    return validation_ok();
+}
+
+// Validate is directory
+fn ValidationResult validate_is_directory(char* path, char* field_name) {
+    ValidationResult result = validate_file_exists(path, field_name);
+    if (!result.valid) return result;
+    if (!fs_utils::is_directory(path)) {
+        char* msg = utils::str_cat(field_name, " must be a directory");
+        validation_free(result);
+        return validation_error(msg);
+    }
+    return validation_ok();
+}
+
+// Validate is file
+fn ValidationResult validate_is_file(char* path, char* field_name) {
+    ValidationResult result = validate_file_exists(path, field_name);
+    if (!result.valid) return result;
+    if (!fs_utils::is_file(path)) {
+        char* msg = utils::str_cat(field_name, " must be a file");
+        validation_free(result);
+        return validation_error(msg);
+    }
+    return

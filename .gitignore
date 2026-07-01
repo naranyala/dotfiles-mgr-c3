@@ -8,6 +8,7 @@
 *.s
 *.out
 
+.fuse_**
 **/node_modules
 
 build/

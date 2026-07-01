@@ -1,15 +1,15 @@
-import { SqliteDemoComponent } from '../../components/sqlite-demo.js'
+import { SqliteManagerComponent } from '../../components/sqlite-manager.js'
 
 export const state = {
     // We don't really have much state at the plugin level for this demo
 }
 
 export async function init() {
-    if (!customElements.get('sqlite-demo')) {
-        customElements.define('sqlite-demo', SqliteDemoComponent)
+    if (!customElements.get('sqlite-manager')) {
+        customElements.define('sqlite-manager', SqliteManagerComponent)
     }
 }
 
 export function render() {
-    return `<sqlite-demo></sqlite-demo>`
+    return `<sqlite-manager></sqlite-manager>`
 }

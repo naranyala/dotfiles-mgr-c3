@@ -4,20 +4,32 @@ import * as filesFeature from '../features/files/index.js'
 import * as toolsFeature from '../features/tools/index.js'
 import * as workspaceFeature from '../features/workspace/index.js'
 import * as themeFeature from '../features/theme/index.js'
-import * as health from '../plugins/health/index.js'
-import * as processes from '../plugins/processes/index.js'
+import * as systemHub from '../features/system-hub/index.js'
+import * as codeExplorer from '../features/code-explorer/index.js'
 import * as commands from '../plugins/commands/index.js'
-import * as network from '../plugins/network/index.js'
-import * as probe from '../plugins/probe/index.js'
-import * as filetools from '../plugins/filetools/index.js'
-import * as search from '../plugins/search/index.js'
-import * as metrics from '../plugins/metrics/index.js'
-import * as fstree from '../plugins/fstree/index.js'
 import * as sqlite from '../plugins/sqlite/index.js'
+import * as envManager from '../plugins/env-manager/index.js'
+import * as processMonitor from '../plugins/process-monitor/index.js'
+import * as taskManager from '../plugins/task-manager/index.js'
+import * as pathToolkit from '../plugins/path-toolkit/index.js'
+import * as clipboardTools from '../plugins/clipboard-tools/index.js'
+import * as fileInspector from '../plugins/file-inspector/index.js'
+import * as searchEverywhere from '../plugins/search-everywhere/index.js'
+import * as backendState from '../plugins/backend-state/index.js'
+import * as gitSummary from '../plugins/git-summary/index.js'
+import * as dotfilesGit from '../plugins/dotfiles-git/index.js'
+import * as dotfilesShell from '../plugins/dotfiles-shell/index.js'
+import * as dotfilesVim from '../plugins/dotfiles-vim/index.js'
+import * as dotfilesTmux from '../plugins/dotfiles-tmux/index.js'
+import * as dotfilesSsh from '../plugins/dotfiles-ssh/index.js'
+import * as dotfilesEditor from '../plugins/dotfiles-editor/index.js'
+import * as dotfilesSync from '../plugins/dotfiles-sync/index.js'
+import * as dotfilesBashrc from '../plugins/dotfiles-bashrc/index.js'
+import * as manpageReader from '../plugins/manpage-reader/index.js'
 
 export const launchers = [
 	{
-		id: 'dashboard', icon: '⊞', title: 'Dashboard',
+		id: 'dashboard', icon: '⊞', title: 'Dashboard', group: 'Workspace & Navigation',
 		desc: 'System overview, workspace management & tools',
 		content: () => `
 			${gitFeature.render()}
@@ -32,37 +44,27 @@ export const launchers = [
 			</div>`
 	},
 	{
-		id: 'sqlite', icon: '🗄', title: 'SQLite Demo',
-		desc: 'CRUD operations demo with SQLite',
-		content: () => `${sqlite.render()}`
+		id: 'workspace', icon: '📂', title: 'Workspace Navigator', group: 'Workspace & Navigation',
+		desc: 'Explore workspaces, groups & repositories',
+		content: () => `${workspaceFeature.render()}`
 	},
 	{
-		id: 'health', icon: '♥', title: 'System Health',
-		desc: 'Memory, disk usage, uptime & load averages',
-		content: () => `${health.render()}`
+		id: 'system-hub', icon: '🛠', title: 'System Hub', group: 'System & Ops',
+		desc: 'Consolidated health, probe & network telemetry',
+		content: () => `${systemHub.render()}`
 	},
 	{
-		id: 'processes', icon: '⚙', title: 'Processes',
-		desc: 'Live process monitor with CPU & memory usage',
-		content: () => `${processes.render()}`
+		id: 'code-explorer', icon: '🔍', title: 'Code Explorer', group: 'Workspace & Navigation',
+		desc: 'Unified file tree, search & editor tools',
+		content: () => `${codeExplorer.render()}`
 	},
 	{
-		id: 'commands', icon: '⌨', title: 'Commands',
-		desc: 'Run shell commands with preset shortcuts',
-		content: () => `${commands.render()}`
-	},
-	{
-		id: 'network', icon: '⊕', title: 'Network',
-		desc: 'Interfaces, gateway, DNS & public IP',
-		content: () => `${network.render()}`
-	},
-	{
-		id: 'git', icon: '⑂', title: 'Git',
+		id: 'git', icon: '⑂', title: 'Git Gallery', group: 'Development Tools',
 		desc: 'Clone, manage & restore git repositories',
 		content: () => `${gitFeature.render()}`
 	},
 	{
-		id: 'terminal', icon: '〉', title: 'Terminal',
+		id: 'terminal', icon: '〉', title: 'Terminal', group: 'System & Ops',
 		desc: 'Interactive terminal with command history',
 		content: () => `
 			<div class="full-width">
@@ -70,44 +72,109 @@ export const launchers = [
 			</div>`
 	},
 	{
-		id: 'probe', icon: '◎', title: 'System Probe',
-		desc: 'CPU load, processes & core info via /proc',
-		content: () => `${probe.render()}`
+		id: 'commands', icon: '⌨', title: 'Commands', group: 'Development Tools',
+		desc: 'Run shell commands with preset shortcuts',
+		content: () => `${commands.render()}`
 	},
 	{
-		id: 'monitor', icon: '◫', title: 'System Monitor',
-		desc: 'Real-time CPU & memory usage charts',
-		content: () => `<div class="full-width"><system-monitor></system-monitor></div>`
+		id: 'sqlite', icon: '🗄', title: 'SQLite Demo', group: 'Development Tools',
+		desc: 'CRUD operations demo with SQLite',
+		content: () => `${sqlite.render()}`
 	},
 	{
-		id: 'editor', icon: '✎', title: 'Config Editor',
-		desc: 'Edit config files with syntax highlighting',
-		content: () => `<div class="full-width"><config-editor></config-editor></div>`
-	},
-	{
-		id: 'filetools', icon: '⚒', title: 'File Tools',
-		desc: 'Quick path check, mkdir & remove',
-		content: () => `${filetools.render()}`
-	},
-	{
-		id: 'theme', icon: '◐', title: 'Theme Switcher',
+		id: 'theme', icon: '◐', title: 'Theme Switcher', group: 'Dotfiles Mini Apps',
 		desc: 'Toggle dark/light design tokens',
 		content: () => `${themeFeature.render()}`
 	},
 	{
-		id: 'search', icon: '⌕', title: 'Code Search',
-		desc: 'Search code with git grep',
-		content: () => `${search.render()}`
+		id: 'env-manager', icon: '🌍', title: 'Environment Manager', group: 'Dotfiles Mini Apps',
+		desc: 'View and manage environment variables',
+		content: () => `${envManager.render()}`
 	},
 	{
-		id: 'metrics', icon: '📊', title: 'Metrics',
-		desc: 'File count and total size of workspace',
-		content: () => `${metrics.render()}`
+		id: 'dotfiles-git', icon: '🐙', title: 'Git Config Manager', group: 'Dotfiles Mini Apps',
+		desc: 'Manage git configuration across repositories',
+		content: () => `${dotfilesGit.render()}`
 	},
 	{
-		id: 'fstree', icon: '🌳', title: 'File Tree',
-		desc: 'Browse repository directory tree',
-		content: () => `${fstree.render()}`
+		id: 'dotfiles-shell', icon: '🪟', title: 'Shell Config Manager', group: 'Dotfiles Mini Apps',
+		desc: 'Configure shell rc files (bashrc, zshrc, fish)',
+		content: () => `${dotfilesShell.render()}`
+	},
+	{
+		id: 'dotfiles-vim', icon: '🟢', title: 'Vim/Neovim Config', group: 'Dotfiles Mini Apps',
+		desc: 'Manage vimrc and neovim configurations',
+		content: () => `${dotfilesVim.render()}`
+	},
+	{
+		id: 'dotfiles-tmux', icon: '🟥', title: 'TMUX Config', group: 'Dotfiles Mini Apps',
+		desc: 'Manage tmux configuration and sessions',
+		content: () => `${dotfilesTmux.render()}`
+	},
+	{
+		id: 'dotfiles-ssh', icon: '🔑', title: 'SSH Config Manager', group: 'Dotfiles Mini Apps',
+		desc: 'Manage SSH configuration and keys',
+		content: () => `${dotfilesSsh.render()}`
+	},
+	{
+		id: 'dotfiles-editor', icon: '✏️', title: 'Editor Config', group: 'Dotfiles Mini Apps',
+		desc: 'Manage editor configurations (VS Code, Sublime, etc.)',
+		content: () => `${dotfilesEditor.render()}`
+	},
+	{
+		id: 'dotfiles-sync', icon: '🔄', title: 'Dotfiles Sync', group: 'Dotfiles Mini Apps',
+		desc: 'Synchronize dotfiles across machines with Git',
+		content: () => `${dotfilesSync.render()}`
+	},
+	{
+		id: 'dotfiles-bashrc', icon: '🐚', title: 'Bashrc Manager', group: 'Dotfiles Mini Apps',
+		desc: 'Read, edit, backup, and restore your .bashrc file',
+		content: () => `${dotfilesBashrc.render()}`
+	},
+	{
+		id: 'task-manager', icon: '📊', title: 'Task Manager', group: 'System & Ops',
+		desc: 'Consolidated system monitoring dashboard',
+		content: () => `${taskManager.render()}`
+	},
+	{
+		id: 'path-toolkit', icon: '🔗', title: 'Path Toolkit', group: 'Development Tools',
+		desc: 'Join paths, get dirname/basename, expand env vars',
+		content: () => `${pathToolkit.render()}`
+	},
+	{
+		id: 'clipboard-tools', icon: '📋', title: 'Clipboard Tools', group: 'System & Ops',
+		desc: 'System clipboard read and write operations',
+		content: () => `${clipboardTools.render()}`
+	},
+	{
+		id: 'file-inspector', icon: '🔬', title: 'File Inspector', group: 'Workspace & Navigation',
+		desc: 'Check file stats, existence, and directory status',
+		content: () => `${fileInspector.render()}`
+	},
+	{
+		id: 'search-everywhere', icon: '🔎', title: 'Search Everywhere', group: 'Workspace & Navigation',
+		desc: 'Unified search across files, repos, and content',
+		content: () => `${searchEverywhere.render()}`
+	},
+	{
+		id: 'backend-state', icon: '⚙', title: 'Backend State', group: 'System & Ops',
+		desc: 'View RPC method count and error state',
+		content: () => `${backendState.render()}`
+	},
+	{
+		id: 'workspace-cli', icon: '💻', title: 'Workspace CLI', group: 'Workspace & Navigation',
+		desc: 'Execute shell commands in workspace context',
+		content: () => `${workspaceCli.render()}`
+	},
+	{
+		id: 'git-summary', icon: '📊', title: 'Git Summary', group: 'Repository',
+		desc: 'Quick view of repository status',
+		content: () => `${gitSummary.render()}`
+	},
+	{
+		id: 'manpage-reader', icon: '📖', title: 'Manpage Reader', group: 'Development Tools',
+		desc: 'Browse system manpages with persistent bookmarks',
+		content: () => `${manpageReader.render()}`
 	},
 ]
 

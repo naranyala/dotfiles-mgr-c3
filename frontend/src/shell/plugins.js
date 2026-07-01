@@ -14,10 +14,29 @@ import * as search from '../plugins/search/index.js'
 import * as metrics from '../plugins/metrics/index.js'
 import * as fstree from '../plugins/fstree/index.js'
 import * as sqlite from '../plugins/sqlite/index.js'
+import * as envManager from '../plugins/env-manager/index.js'
+import * as processMonitor from '../plugins/process-monitor/index.js'
+import * as taskManager from '../plugins/task-manager/index.js'
+import * as pathToolkit from '../plugins/path-toolkit/index.js'
+import * as clipboardTools from '../plugins/clipboard-tools/index.js'
+import * as fileInspector from '../plugins/file-inspector/index.js'
+import * as searchEverywhere from '../plugins/search-everywhere/index.js'
+import * as backendState from '../plugins/backend-state/index.js'
+import * as workspaceCli from '../plugins/workspace-cli/index.js'
+import * as dotfilesGit from '../plugins/dotfiles-git/index.js'
+import * as dotfilesShell from '../plugins/dotfiles-shell/index.js'
+import * as dotfilesVim from '../plugins/dotfiles-vim/index.js'
+import * as dotfilesTmux from '../plugins/dotfiles-tmux/index.js'
+import * as dotfilesSsh from '../plugins/dotfiles-ssh/index.js'
+import * as dotfilesEditor from '../plugins/dotfiles-editor/index.js'
+import * as dotfilesSync from '../plugins/dotfiles-sync/index.js'
+import * as gitSummary from '../plugins/git-summary/index.js'
+import * as dotfilesBashrc from '../plugins/dotfiles-bashrc/index.js'
+import * as manpageReader from '../plugins/manpage-reader/index.js'
 
-export const plugins = [system, git, files, tools, health, processes, commands, network, probe, filetools, theme, search, metrics, fstree, sqlite]
+export const plugins = [system, git, files, tools, health, processes, commands, network, probe, filetools, theme, search, metrics, fstree, sqlite, envManager, processMonitor, taskManager, pathToolkit, clipboardTools, fileInspector, searchEverywhere, backendState, workspaceCli, dotfilesGit, dotfilesShell, dotfilesVim, dotfilesTmux, dotfilesSsh, dotfilesEditor, dotfilesSync, gitSummary, dotfilesBashrc, manpageReader]
 
-const pluginNames = ['system', 'git', 'files', 'tools', 'health', 'processes', 'commands', 'network', 'probe', 'filetools', 'theme', 'search', 'metrics', 'fstree', 'sqlite']
+const pluginNames = ['system', 'git', 'files', 'tools', 'health', 'processes', 'commands', 'network', 'probe', 'filetools', 'theme', 'search', 'metrics', 'fstree', 'sqlite', 'envManager', 'processMonitor', 'taskManager', 'pathToolkit', 'clipboardTools', 'fileInspector', 'searchEverywhere', 'backendState', 'workspaceCli', 'dotfilesGit', 'dotfilesShell', 'dotfilesVim', 'dotfilesTmux', 'dotfilesSsh', 'dotfilesEditor', 'dotfilesSync', 'gitSummary', 'dotfilesBashrc', 'manpageReader']
 
 for (let i = 0; i < plugins.length; i++) {
 	registry.register({ name: pluginNames[i], ...plugins[i] })
@@ -53,6 +72,6 @@ export function collectPluginStates() {
 }
 
 export async function initAll() {
-	await Promise.all(plugins.map(p => p.init()))
+	await Promise.all(plugins.map(p => typeof p.init === 'function' ? p.init() : Promise.resolve()))
 	setTimeout(() => window.dumpAllState(), 500)
 }

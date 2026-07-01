@@ -1,0 +1,21 @@
+module man;
+
+extern fn void* popen(char* command, char* type);
+extern fn int pclose(void* stream);
+extern fn char* fgets(char* s, int size, void* stream);
+extern fn int system(char* command);
+extern fn char* getenv(char* name);
+extern fn int access(char* path, int mode);
+extern fn int fclose(void* stream);
+extern fn void* fopen(char* filename, char* mode);
+extern fn int fseek(void* stream, long offset, int whence);
+extern fn long ftell(void* stream);
+extern fn int fread(void* ptr, int size, int nmemb, void* stream);
+extern fn int fwrite(void* ptr, int size, int nmemb, void* stream);
+extern fn void* malloc(int size);
+extern fn void free(void* ptr);
+extern fn int strcmp(char* s1, char* s2);
+extern fn int strncmp(char* s1, char* s2, int n);
+extern fn int strlen(char* s);
+extern fn int snprintf(char* str, int size, char* format, ...);
+extern fn int mkdir(char* path, int mode);

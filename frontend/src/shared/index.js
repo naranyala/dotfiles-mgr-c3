@@ -23,3 +23,4 @@ export {
 	renderBreadcrumbs,
 	renderDescriptionList,
 } from './html-patterns.js'
+export * from './utils.js'

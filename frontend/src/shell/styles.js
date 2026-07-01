@@ -451,8 +451,41 @@ export const styles = `
     border-radius: 6px;
     flex-shrink: 0;
   }
-
+  .menu-group {
+    margin-bottom: 20px;
+  }
+  .menu-group-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 8px 0;
+    user-select: none;
+  }
+  .btn-copy-group {
+    background: none;
+    border: 1px solid transparent;
+    color: #64748b;
+    cursor: pointer;
+    font-size: 0.8rem;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: all 0.12s ease;
+    box-shadow: none;
+    margin: 0;
+  }
+  .btn-copy-group:hover {
+    color: #34d399;
+    border-color: rgba(52,211,153,0.3);
+    background: rgba(52,211,153,0.05);
+  }
+  
   /* --- status bar --- */
+
   .status-bar {
     position: fixed;
     bottom: 0;

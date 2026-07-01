@@ -49,6 +49,11 @@ class SystemDashboard extends ReactiveComponent {
 		this.activeTab.value = 'home'
 	}
 
+	navigateToPlugin(id) {
+		const card = launchers.find(c => c.id === id)
+		if (card) this.openTab(card)
+	}
+
 	_initDrawerDrag() {
 		const root = this.shadowRoot
 		if (!root) return
@@ -168,6 +173,7 @@ class SystemDashboard extends ReactiveComponent {
 	}
 
 	onMount() {
+		window.navigateToPlugin = this.navigateToPlugin.bind(this)
 		initAll()
 		for (const p of plugins) {
 			if (p.onMount) p.onMount(this)
@@ -228,6 +234,15 @@ class SystemDashboard extends ReactiveComponent {
 				this.bottomDrawerOpen.value = false
 				this.sidePanelOpen.value = false
 			}
+		})
+		this.delegate('click', '[data-copy-text]', (e) => {
+			const el = e.target.closest('[data-copy-text]')
+			if (!el) return
+			const text = el.dataset.copyText
+			navigator.clipboard.writeText(text).then(() => {
+				el.textContent = '✓'
+				setTimeout(() => el.textContent = '📋', 1000)
+			}).catch(() => alert('Copy failed'))
 		})
 
 		this._initDrawerDrag()
