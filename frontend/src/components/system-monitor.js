@@ -92,8 +92,8 @@ export class SystemMonitor extends ReactiveComponent {
 	async _poll() {
 		try {
 			const [memRes, probeRes] = await Promise.all([
-				window.rpc.memoryInfo(),
-				window.rpc.systemProbe(),
+				window.rpc.shell.memoryInfo(),
+				window.rpc.shell.systemProbe(),
 			])
 
 			const now = Math.floor(Date.now() / 1000)

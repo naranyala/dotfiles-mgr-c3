@@ -11,7 +11,7 @@ export function onMount(component) {
 	component.delegate('click', '#btn-metrics-refresh', async () => {
 		state.loading = true
 		try {
-			const res = await window.rpc.metrics_getStats()
+			const res = await window.rpc.shell.metrics_getStats()
 			if (res.error) state.data = { error: res.error }
 			else state.data = res
 		} catch (e) {

@@ -12,25 +12,25 @@ export const state = reactive({
 
 export async function init() {
 	try {
-		state.sysInfo = await window.rpc.systemInfo()
+		state.sysInfo = await window.rpc.system.getSystemInfo()
 	} catch (e) { state.sysInfo = { error: e.message } }
 	try {
-		state.hostname = (await window.rpc.hostname()).hostname
+		state.hostname = (await window.rpc.shell.hostname()).hostname
 	} catch (e) { state.hostname = `err: ${e.message}` }
 	try {
-		state.username = (await window.rpc.username()).username
+		state.username = (await window.rpc.shell.username()).username
 	} catch (e) { state.username = `err: ${e.message}` }
 	try {
-		state.uname = await window.rpc.uname()
+		state.uname = await window.rpc.shell.uname()
 	} catch (e) { state.uname = { error: e.message } }
 	try {
-		state.memory = await window.rpc.memoryInfo()
+		state.memory = await window.rpc.shell.memoryInfo()
 	} catch (e) { state.memory = { error: e.message } }
 	try {
-		state.uptime = await window.rpc.uptime()
+		state.uptime = await window.rpc.shell.uptime()
 	} catch (e) { state.uptime = { error: e.message } }
 	try {
-		state.diskInfo = await window.rpc.diskUsage('/')
+		state.diskInfo = await window.rpc.shell.diskUsage('/')
 	} catch (e) { state.diskInfo = { error: e.message } }
 }
 

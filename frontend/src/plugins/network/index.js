@@ -12,7 +12,7 @@ export const state = reactive({
 export async function init() {
 	state.loading = true
 	try {
-		const res = await window.rpc.exec('ip -br addr')
+		const res = await window.rpc.shell.exec('ip -br addr')
 		if (!res.error && res.output) {
 			state.interfaces = res.output.trim().split('\n').map(line => {
 				const parts = line.trim().split(/\s+/)
@@ -26,7 +26,7 @@ export async function init() {
 	} catch (e) { /* ignore */ }
 
 	try {
-		const res = await window.rpc.exec('ip route show default')
+		const res = await window.rpc.shell.exec('ip route show default')
 		if (!res.error && res.output) {
 			const match = res.output.match(/via\s+(\S+)/)
 			state.gateway = match ? match[1] : ''
@@ -34,14 +34,14 @@ export async function init() {
 	} catch (e) { /* ignore */ }
 
 	try {
-		const res = await window.rpc.exec('cat /etc/resolv.conf | grep nameserver')
+		const res = await window.rpc.shell.exec('cat /etc/resolv.conf | grep nameserver')
 		if (!res.error && res.output) {
 			state.dns = res.output.trim().split('\n').map(l => l.replace('nameserver', '').trim()).join(', ')
 		}
 	} catch (e) { /* ignore */ }
 
 	try {
-		const res = await window.rpc.exec('curl -s --max-time 3 ifconfig.me')
+		const res = await window.rpc.shell.exec('curl -s --max-time 3 ifconfig.me')
 		if (!res.error && res.output) {
 			state.publicIp = res.output.trim()
 		}

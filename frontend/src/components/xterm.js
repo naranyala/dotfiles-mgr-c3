@@ -128,7 +128,7 @@ export class XTermTerminal extends ReactiveComponent {
 		}
 
 		try {
-			const res = await window.rpc.exec(cmd)
+			const res = await window.rpc.shell.exec(cmd)
 			if (res.error) {
 				this._term.writeln(`\x1b[31mError: ${res.error}\x1b[0m`)
 			} else if (res.output) {

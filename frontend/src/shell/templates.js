@@ -162,7 +162,7 @@ function renderSideDebug(tabs, active, bottomOpen, q) {
 		</div>
 		<div style="margin-bottom:16px">
 			<label>Backend State</label>
-			<button class="btn-icon" style="font-size:0.78rem;padding:4px 10px" onclick="window.rpc?.dumpBackendState?.()">Dump to Console</button>
+			<button class="btn-icon" style="font-size:0.78rem;padding:4px 10px" onclick="window.rpc?.shell.dumpBackendState?.()">Dump to Console</button>
 			<div style="font-size:0.72rem;color:#64748b;margin-top:6px">Click to dump backend state to terminal logs.</div>
 		</div>
 		<div>

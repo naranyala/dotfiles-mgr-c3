@@ -10,11 +10,11 @@ export const state = reactive({
 
 export async function loadRepos() {
 	try {
-		const res = await window.rpc.gitList()
+		const res = await window.rpc.shell.gitList()
 		state.gitRepos = res.repos || []
 	} catch (e) { state.gitRepos = [] }
 	try {
-		const res = await window.rpc.gitTrashList()
+		const res = await window.rpc.shell.gitTrashList()
 		state.gitTrashRepos = res.repos || []
 	} catch (e) { state.gitTrashRepos = [] }
 }
@@ -29,7 +29,7 @@ export function onMount(component) {
 		state.gitLoading = true
 		state.gitStatus = ''
 		try {
-			const res = await window.rpc.gitClone(state.gitUrl)
+			const res = await window.rpc.shell.gitClone(state.gitUrl)
 			if (res.error) {
 				state.gitStatus = res.error
 			} else {
@@ -49,7 +49,7 @@ export function onMount(component) {
 		const name = e.target.dataset.repo
 		if (!name || !confirm(`Remove "${name}" from workspace?`)) return
 		try {
-			await window.rpc.gitRemove(name)
+			await window.rpc.shell.gitRemove(name)
 			await loadRepos()
 		} catch (err) { alert(err.message) }
 	})
@@ -58,7 +58,7 @@ export function onMount(component) {
 		const name = e.target.dataset.repo
 		if (!name) return
 		try {
-			await window.rpc.gitRestore(name)
+			await window.rpc.shell.gitRestore(name)
 			await loadRepos()
 		} catch (err) { alert(err.message) }
 	})

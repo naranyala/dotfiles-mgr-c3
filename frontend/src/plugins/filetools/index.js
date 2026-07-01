@@ -16,9 +16,9 @@ const _store = createStore({
 		s.busy = true; s.error = null
 		try {
 			const [exists, isDir, stat] = await Promise.all([
-				window.rpc.exists(s.path),
-				window.rpc.isDir(s.path),
-				window.rpc.stat(s.path),
+				window.rpc.shell.exists(s.path),
+				window.rpc.shell.isDir(s.path),
+				window.rpc.shell.stat(s.path),
 			])
 			batch(() => { s.exists = exists; s.isDir = isDir; s.stat = stat })
 		} catch (e) { s.error = e.message }
@@ -27,14 +27,14 @@ const _store = createStore({
 	mkdir: (s) => async () => {
 		if (!s.path) return
 		s.busy = true; s.error = null
-		try { await window.rpc.mkdir(s.path); await s.actions.check() }
+		try { await window.rpc.shell.mkdir(s.path); await s.actions.check() }
 		catch (e) { s.error = e.message }
 		s.busy = false
 	},
 	remove: (s) => async () => {
 		if (!s.path || !confirm(`Remove ${s.path}?`)) return
 		s.busy = true; s.error = null
-		try { await window.rpc.remove(s.path); batch(() => { s.exists = false; s.stat = null }) }
+		try { await window.rpc.shell.remove(s.path); batch(() => { s.exists = false; s.stat = null }) }
 		catch (e) { s.error = e.message }
 		s.busy = false
 	},

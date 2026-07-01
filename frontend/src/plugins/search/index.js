@@ -14,7 +14,7 @@ export function onMount(component) {
 		state.loading = true
 		state.results = ''
 		try {
-			const res = await window.rpc.search_query(state.query)
+			const res = await window.rpc.shell.search_query(state.query)
 			if (res.error) state.results = 'Error: ' + res.error
 			else state.results = res.results || '(no matches)'
 		} catch (e) {

@@ -13,10 +13,11 @@ import * as theme from '../plugins/theme/index.js'
 import * as search from '../plugins/search/index.js'
 import * as metrics from '../plugins/metrics/index.js'
 import * as fstree from '../plugins/fstree/index.js'
+import * as sqlite from '../plugins/sqlite/index.js'
 
-export const plugins = [system, git, files, tools, health, processes, commands, network, probe, filetools, theme, search, metrics, fstree]
+export const plugins = [system, git, files, tools, health, processes, commands, network, probe, filetools, theme, search, metrics, fstree, sqlite]
 
-const pluginNames = ['system', 'git', 'files', 'tools', 'health', 'processes', 'commands', 'network', 'probe', 'filetools', 'theme', 'search', 'metrics', 'fstree']
+const pluginNames = ['system', 'git', 'files', 'tools', 'health', 'processes', 'commands', 'network', 'probe', 'filetools', 'theme', 'search', 'metrics', 'fstree', 'sqlite']
 
 for (let i = 0; i < plugins.length; i++) {
 	registry.register({ name: pluginNames[i], ...plugins[i] })

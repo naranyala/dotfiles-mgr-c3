@@ -13,6 +13,7 @@ import * as filetools from '../plugins/filetools/index.js'
 import * as search from '../plugins/search/index.js'
 import * as metrics from '../plugins/metrics/index.js'
 import * as fstree from '../plugins/fstree/index.js'
+import * as sqlite from '../plugins/sqlite/index.js'
 
 export const launchers = [
 	{
@@ -29,6 +30,11 @@ export const launchers = [
 				<label>Terminal Logs</label>
 				<terminal-view></terminal-view>
 			</div>`
+	},
+	{
+		id: 'sqlite', icon: '🗄', title: 'SQLite Demo',
+		desc: 'CRUD operations demo with SQLite',
+		content: () => `${sqlite.render()}`
 	},
 	{
 		id: 'health', icon: '♥', title: 'System Health',

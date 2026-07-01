@@ -7,7 +7,7 @@ extern fn int fclose(void* stream);
 extern fn int fputs(char* s, void* stream);
 extern fn char* fgets(char* s, int size, void* stream);
 
-fn int main() {
+fn void test_main() {
     char* file_path = "test_workspace.txt";
     
     // Write
@@ -28,5 +28,4 @@ fn int main() {
         fclose(fp2);
     }
     
-    return 0;
 }

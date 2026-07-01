@@ -201,21 +201,21 @@ fn void handle_rpc_callback(char* id, char* req, void* arg) {
 
     if (!req || !id) {
         errors::error_push(errors::ERR_INVALID_ARGS, "Null request or id", "rpc::handle_rpc");
-        webview::webview_return(w, id, 1, errors::error_to_json(errors::ERR_INVALID_ARGS, "Null request or id"));
+        respond_error(w, id, errors::ERR_INVALID_ARGS, "Null request or id", "rpc::handle_rpc");
         return;
     }
 
     cjson::CJson json = cjson::cJSON_Parse(req);
     if (!json) {
         errors::error_push(errors::ERR_JSON_PARSE, "Invalid JSON", "rpc::handle_rpc");
-        webview::webview_return(w, id, 1, errors::error_to_json(errors::ERR_JSON_PARSE, "Invalid JSON"));
+        respond_error(w, id, errors::ERR_JSON_PARSE, "Invalid JSON", "rpc::handle_rpc");
         return;
     }
 
     if (!cjson::cJSON_IsArray(json)) {
         cjson::cJSON_Delete(json);
         errors::error_push(errors::ERR_INVALID_REQUEST, "Request must be an array", "rpc::handle_rpc");
-        webview::webview_return(w, id, 1, errors::error_to_json(errors::ERR_INVALID_REQUEST, "Request must be an array"));
+        respond_error(w, id, errors::ERR_INVALID_REQUEST, "Request must be an array", "rpc::handle_rpc");
         return;
     }
 
@@ -223,7 +223,7 @@ fn void handle_rpc_callback(char* id, char* req, void* arg) {
     if (!cjson::cJSON_IsString(method_item)) {
         cjson::cJSON_Delete(json);
         errors::error_push(errors::ERR_INVALID_REQUEST, "Method name must be a string", "rpc::handle_rpc");
-        webview::webview_return(w, id, 1, errors::error_to_json(errors::ERR_INVALID_REQUEST, "Method name must be a string"));
+        respond_error(w, id, errors::ERR_INVALID_REQUEST, "Method name must be a string", "rpc::handle_rpc");
         return;
     }
 
@@ -262,10 +262,10 @@ fn void handle_rpc_callback(char* id, char* req, void* arg) {
         }
     }
 
-    char* msg = errors::error_to_json(errors::ERR_METHOD_NOT_FOUND, "Method not found");
+    char* error_msg = errors::error_to_json(errors::ERR_METHOD_NOT_FOUND, "Method not found", "rpc::handle_rpc");
     errors::error_push(errors::ERR_METHOD_NOT_FOUND, "Method not found", "rpc::handle_rpc");
-    webview::webview_return(w, id, 1, msg);
-    libc::free(msg);
+    webview::webview_return(w, id, 1, error_msg);
+    libc::free(error_msg);
     cjson::cJSON_Delete(json);
 }
 
@@ -278,6 +278,12 @@ fn void emit_frontend(char* event, char* payload) {
         "window.dispatchEvent(new CustomEvent('%s', { detail: %s }));", 
         event, payload);
     webview::webview_eval(global_webview, &script[0]);
+}
+
+fn void respond_error(webview::Webview w, char* id, int code, char* message, char* source) {
+    char* json_str = errors::error_to_json(code, message, source);
+    webview::webview_return(w, id, 1, json_str);
+    libc::free(json_str);
 }
 
 fn void bind(webview::Webview w) {

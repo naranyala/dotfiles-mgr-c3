@@ -6,78 +6,78 @@
 
 export const shell = {
 	async exec(cmd) {
-		const res = await window.rpc.exec(cmd)
+		const res = await window.rpc.shell.exec(cmd)
 		return res?.output ?? ''
 	},
 
 	async log(msg, level = 'info') {
-		return window.rpc.log(msg, level)
+		return window.rpc.shell.log(msg, level)
 	},
 
 	// Environment
 	async envGet(name) {
-		const res = await window.rpc.envGet(name)
+		const res = await window.rpc.shell.envGet(name)
 		return res?.value ?? null
 	},
 
 	async envSet(name, value) {
-		return window.rpc.envSet(name, value)
+		return window.rpc.shell.envSet(name, value)
 	},
 
 	async envList() {
-		const res = await window.rpc.envList()
+		const res = await window.rpc.shell.envList()
 		return res ?? []
 	},
 
 	// Working directory
 	async cwd() {
-		const res = await window.rpc.cwd()
+		const res = await window.rpc.shell.cwd()
 		return res?.path ?? '/'
 	},
 
 	async setCwd(path) {
-		return window.rpc.setCwd(path)
+		return window.rpc.shell.setCwd(path)
 	},
 
 	// Background jobs
 	async execBg(cmd) {
-		const res = await window.rpc.execBg(cmd)
+		const res = await window.rpc.shell.execBg(cmd)
 		return { jobId: res?.jobId, pid: res?.pid }
 	},
 
 	async execRead(jobId) {
-		const res = await window.rpc.execRead(String(jobId))
+		const res = await window.rpc.shell.execRead(String(jobId))
 		return { output: res?.output ?? '', running: res?.running ?? false, exitCode: res?.exitCode }
 	},
 
 	async execKill(jobId) {
-		return window.rpc.execKill(String(jobId))
+		return window.rpc.shell.execKill(String(jobId))
 	},
 
 	// Process signals
 	async processSignal(pid, signal = 9) {
-		return window.rpc.processSignal(pid, signal)
+		return window.rpc.shell.processSignal(pid, signal)
 	},
 
 	// Path utilities
 	async pathJoin(...parts) {
-		const res = await window.rpc.pathJoin(...parts)
+		const res = await window.rpc.shell.pathJoin(...parts)
 		return res?.path ?? ''
 	},
 
 	async pathDirname(path) {
-		const res = await window.rpc.pathDirname(path)
+		const res = await window.rpc.shell.pathDirname(path)
 		return res?.path ?? '.'
 	},
 
 	async pathBasename(path) {
-		const res = await window.rpc.pathBasename(path)
+		const res = await window.rpc.shell.pathBasename(path)
 		return res?.name ?? ''
 	},
 
 	// Environment expansion
 	async expandEnv(template) {
-		const res = await window.rpc.expandEnv(template)
+		const res = await window.rpc.shell.expandEnv(template)
 		return res?.value ?? template
 	},
 }

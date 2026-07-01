@@ -15,19 +15,19 @@ export async function init() {}
 
 export function onMount(component) {
 	component.delegate('click', '#btn-ls', async () => {
-		const res = await window.rpc.listDir(state.listDirPath)
+		const res = await window.rpc.shell.listDir(state.listDirPath)
 		if (res.error) alert('List Error: ' + res.error)
 		else state.dirEntries = res.entries || []
 	})
 	component.delegate('input', '#ls-path', (e) => (state.listDirPath = e.target.value))
 
 	component.delegate('click', '#btn-read', async () => {
-		const res = await window.rpc.readFile(state.filePath)
+		const res = await window.rpc.shell.readFile(state.filePath)
 		if (res.error) alert('Read Error: ' + res.error)
 		else state.fileContent = res.content || ''
 	})
 	component.delegate('click', '#btn-write', async () => {
-		const res = await window.rpc.writeFile(state.filePath, state.fileContent)
+		const res = await window.rpc.shell.writeFile(state.filePath, state.fileContent)
 		if (res.error) alert('Write Error: ' + res.error)
 		else alert('Wrote to ' + state.filePath)
 	})
@@ -35,14 +35,14 @@ export function onMount(component) {
 	component.delegate('input', '#file-content', (e) => (state.fileContent = e.target.value))
 
 	component.delegate('click', '#btn-stat', async () => {
-		const res = await window.rpc.stat(state.statPath)
+		const res = await window.rpc.shell.stat(state.statPath)
 		if (res.error) alert('Stat Error: ' + res.error)
 		else state.statInfo = res
 	})
 	component.delegate('input', '#stat-path', (e) => (state.statPath = e.target.value))
 
 	component.delegate('click', '#btn-glob', async () => {
-		const res = await window.rpc.glob(state.globPat)
+		const res = await window.rpc.shell.glob(state.globPat)
 		if (res.error) alert('Glob Error: ' + res.error)
 		else state.globResults = res.matches || []
 	})

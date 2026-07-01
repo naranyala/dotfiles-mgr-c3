@@ -20,7 +20,7 @@ export function onMount(component) {
 		state.fileContent = ''
 		state.selectedFile = ''
 		try {
-			const res = await window.rpc.get_tree(state.repoId)
+			const res = await window.rpc.shell.get_tree(state.repoId)
 			if (res.error) state.error = res.error
 			else state.tree = res
 		} catch (e) {
@@ -37,7 +37,7 @@ export function onMount(component) {
 		state.loading = true
 		state.error = ''
 		try {
-			const res = await window.rpc.get_file_content(entryId)
+			const res = await window.rpc.shell.get_file_content(entryId)
 			if (res.error) state.error = res.error
 			else {
 				state.fileContent = res

@@ -5,26 +5,26 @@ export function installStateDump() {
 		const frontendStates = collectPluginStates()
 		const divider = '═'.repeat(60)
 
-		if (window.rpc && window.rpc.log) {
-			window.rpc.log(`\n${divider}\n  FRONTEND STATE DUMP\n${divider}`, 'info')
+		if (window.rpc && window.rpc.shell.log) {
+			window.rpc.shell.log(`\n${divider}\n  FRONTEND STATE DUMP\n${divider}`, 'info')
 			for (const [plugin, st] of Object.entries(frontendStates)) {
-				window.rpc.log(`[plugin:${plugin}] ${JSON.stringify(st, null, 2)}`, 'info')
+				window.rpc.shell.log(`[plugin:${plugin}] ${JSON.stringify(st, null, 2)}`, 'info')
 			}
 		}
 
-		if (window.rpc && window.rpc.dumpBackendState) {
+		if (window.rpc && window.rpc.shell.dumpBackendState) {
 			try {
-				const backendState = await window.rpc.dumpBackendState()
-				if (window.rpc.log) {
-					window.rpc.log(`[BACKEND STATE JSON] ${JSON.stringify(backendState, null, 2)}`, 'info')
+				const backendState = await window.rpc.shell.dumpBackendState()
+				if (window.rpc.shell.log) {
+					window.rpc.shell.log(`[BACKEND STATE JSON] ${JSON.stringify(backendState, null, 2)}`, 'info')
 				}
 			} catch (e) {
 				console.error('Failed to dump backend state', e)
 			}
 		}
 
-		if (window.rpc && window.rpc.log) {
-			window.rpc.log(`${divider}\n  END STATE DUMP\n${divider}\n`, 'info')
+		if (window.rpc && window.rpc.shell.log) {
+			window.rpc.shell.log(`${divider}\n  END STATE DUMP\n${divider}\n`, 'info')
 		}
 	}
 

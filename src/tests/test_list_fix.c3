@@ -1,4 +1,4 @@
-module test_list;
+module test_list_fix;
 import libc;
 import cjson;
 import libgit2;
@@ -8,7 +8,7 @@ extern fn void* popen(char* command, char* type);
 extern fn int pclose(void* stream);
 extern fn char* fgets(char* s, int size, void* stream);
 
-fn int main() {
+fn void test_main() {
     libgit2::git_libgit2_init();
     cjson::CJson result = cjson::cJSON_CreateArray();
     char* current_workspace = "./examples";
@@ -51,5 +51,4 @@ fn int main() {
     
     char* json_str = cjson::cJSON_Print(result);
     io::printn((ZString)json_str);
-    return 0;
 }

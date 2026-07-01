@@ -37,12 +37,12 @@ function formatUptime(s) {
 }
 
 export async function init() {
-	try { state.memory = await window.rpc.memoryInfo() } catch (e) { state.memory = { error: e.message } }
-	try { state.disk = await window.rpc.diskUsage('/') } catch (e) { state.disk = { error: e.message } }
-	try { state.uptime = await window.rpc.uptime() } catch (e) { state.uptime = { error: e.message } }
-	try { state.hostname = (await window.rpc.hostname()).hostname } catch (e) { state.hostname = '—' }
+	try { state.memory = await window.rpc.shell.memoryInfo() } catch (e) { state.memory = { error: e.message } }
+	try { state.disk = await window.rpc.shell.diskUsage('/') } catch (e) { state.disk = { error: e.message } }
+	try { state.uptime = await window.rpc.shell.uptime() } catch (e) { state.uptime = { error: e.message } }
+	try { state.hostname = (await window.rpc.shell.hostname()).hostname } catch (e) { state.hostname = '—' }
 	try {
-		const res = await window.rpc.exec('cat /proc/loadavg')
+		const res = await window.rpc.shell.exec('cat /proc/loadavg')
 		if (!res.error) state.loadAvg = res.output.trim().split(' ').slice(0, 3).join('  ')
 	} catch (e) { state.loadAvg = '—' }
 }

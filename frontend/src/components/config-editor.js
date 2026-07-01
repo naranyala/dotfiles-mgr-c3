@@ -85,7 +85,7 @@ export class ConfigEditor extends ReactiveComponent {
 		if (!this._view) await this._initEditor()
 
 		try {
-			const res = await window.rpc.readFile(path)
+			const res = await window.rpc.shell.readFile(path)
 			if (res.error) {
 				this._error.value = res.error
 				return
@@ -114,7 +114,7 @@ export class ConfigEditor extends ReactiveComponent {
 
 		try {
 			const content = this._view.state.doc.toString()
-			const res = await window.rpc.writeFile(this._filePath.value, content)
+			const res = await window.rpc.shell.writeFile(this._filePath.value, content)
 			if (res.error) {
 				this._error.value = res.error
 				return

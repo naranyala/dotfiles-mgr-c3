@@ -7,6 +7,7 @@ import features::system;
 import features::git;
 import features::workspace;
 import features::shell;
+import features::sqlite;
 import libc;
 import std::io;
 
@@ -30,6 +31,9 @@ fn int main() {
 
     rc = features::shell::init();
     if (rc != errors::ERR_OK) io::printfn("Failed to register shell: %d", rc);
+
+    rc = features::sqlite::init();
+    if (rc != errors::ERR_OK) io::printfn("Failed to register sqlite: %d", rc);
 
     webview::Webview w = webview::webview_create(1, null);
     if (!w) {

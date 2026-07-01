@@ -24,5 +24,5 @@ fn void handle_get_system_info(webview::Webview w, char* id, cjson::CJson args) 
 }
 
 fn int init() {
-    return core::rpc::register("getSystemInfo", &handle_get_system_info);
+    return core::rpc::register("system.getSystemInfo", &handle_get_system_info);
 }

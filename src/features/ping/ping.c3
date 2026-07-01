@@ -23,5 +23,5 @@ fn void handle_ping(webview::Webview w, char* id, cjson::CJson args) {
 }
 
 fn int init() {
-    return core::rpc::register("ping", &handle_ping);
+    return core::rpc::register("ping.ping", &handle_ping);
 }

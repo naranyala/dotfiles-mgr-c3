@@ -180,7 +180,7 @@ fn void test_error_module() {
     if (libc::strcmp((ZString)errors::global_errors.entries[0].message, (ZString)"test error") == 0) { pass("error message stored"); } else { fail("error message stored"); }
     if (libc::strcmp((ZString)errors::global_errors.entries[0].source, (ZString)"test") == 0) { pass("error source stored"); } else { fail("error source stored"); }
 
-    char* json = errors::error_to_json(1001, "test error");
+    char* json = errors::error_to_json(1001, "test error", "test");
     if (json != null) { pass("error_to_json produces string"); } else { fail("error_to_json produces string"); }
     cjson::CJson parsed = cjson::cJSON_Parse(json);
     if ((void*)parsed != null) { pass("error JSON is valid"); } else { fail("error JSON is valid"); }
@@ -383,7 +383,7 @@ fn void test_registry_consistency() {
 // Main
 // ═══════════════════════════════════════════════════════════════
 
-fn int main() {
+fn void test_main() {
     libc::printf("═══════════════════════════════════════════════════════\n");
     libc::printf("  Backend RPC / Handler Test Suite\n");
     libc::printf("═══════════════════════════════════════════════════════\n");
@@ -404,10 +404,8 @@ fn int main() {
     test_cjson_types();
     test_rpc_dispatch_prerequisites();
     test_registry_consistency();
-
+ 
     libc::printf("\n═══════════════════════════════════════════════════════\n");
     libc::printf("  Results: %d passed, %d failed\n", tests_passed, tests_failed);
     libc::printf("═══════════════════════════════════════════════════════\n");
-
-    return tests_failed > 0 ? 1 : 0;
 }

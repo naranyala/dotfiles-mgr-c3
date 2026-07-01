@@ -2,7 +2,7 @@ module test_ext;
 import std::io;
 import libgit2;
 
-fn int main() {
+fn void test_main() {
     libgit2::git_libgit2_init();
     libgit2::GitRepository r;
     // test on non-repo inside a repo
@@ -19,5 +19,4 @@ fn int main() {
     } else {
         io::printn("Failed to open basic-commits");
     }
-    return 0;
 }

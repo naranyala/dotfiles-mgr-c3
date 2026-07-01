@@ -34,7 +34,7 @@ export async function init() {
 async function loadProcs() {
 	state.loading = true
 	try {
-		const res = await window.rpc.psList(state.sortBy)
+		const res = await window.rpc.shell.psList(state.sortBy)
 		if (res && !res.error) state.procs = res
 	} catch (e) { /* ignore */ }
 	state.loading = false
@@ -49,7 +49,7 @@ export function onMount(component) {
 	component.delegate('click', '[data-kill-pid]', (e) => {
 		const pid = e.target.closest('[data-kill-pid]').dataset.killPid
 		if (confirm(`Kill PID ${pid}?`)) {
-			window.rpc.psKill(pid).then(() => loadProcs())
+			window.rpc.shell.psKill(pid).then(() => loadProcs())
 		}
 	})
 }

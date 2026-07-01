@@ -14,33 +14,33 @@ export async function init() {}
 
 export function onMount(component) {
 	component.delegate('click', '#btn-env', async () => {
-		const res = await window.rpc.envGet(state.envKey)
+		const res = await window.rpc.shell.envGet(state.envKey)
 		if (res.error) state.envVal = 'not set'
 		else state.envVal = res.value
 	})
 	component.delegate('input', '#env-key', (e) => (state.envKey = e.target.value))
 
 	component.delegate('click', '#btn-clip-get', async () => {
-		const res = await window.rpc.clipboardGet()
+		const res = await window.rpc.shell.clipboardGet()
 		if (res.error) alert('Clipboard Error: ' + res.error)
 		else state.clipText = res.text
 	})
 	component.delegate('click', '#btn-clip-set', async () => {
-		const res = await window.rpc.clipboardSet(state.clipText)
+		const res = await window.rpc.shell.clipboardSet(state.clipText)
 		if (res.error) alert('Clipboard Error: ' + res.error)
 		else alert('Copied!')
 	})
 	component.delegate('input', '#clip-text', (e) => (state.clipText = e.target.value))
 
 	component.delegate('click', '#btn-exec', async () => {
-		const res = await window.rpc.exec(state.execCmd)
+		const res = await window.rpc.shell.exec(state.execCmd)
 		if (res.error) state.execResult = 'Error: ' + res.error
 		else state.execResult = res.output || '(no output)'
 	})
 	component.delegate('input', '#exec-cmd', (e) => (state.execCmd = e.target.value))
 
 	component.delegate('click', '#btn-which', async () => {
-		const r1 = await window.rpc.which(state.whichCmd)
+		const r1 = await window.rpc.shell.which(state.whichCmd)
 		state.whichFound = r1.found
 	})
 	component.delegate('input', '#which-cmd', (e) => (state.whichCmd = e.target.value))

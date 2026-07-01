@@ -39,6 +39,11 @@ if [ -f "$PROJECT_DIR/vendor/libzip.a" ]; then
     VCPKG_LIBS="$VCPKG_LIBS $PROJECT_DIR/vendor/libzip.a"
 fi
 
+# Add sqlite
+if [ -f "$PROJECT_DIR/vendor/sqlite/libsqlite3.a" ]; then
+    VCPKG_LIBS="$VCPKG_LIBS $PROJECT_DIR/vendor/sqlite/libsqlite3.a"
+fi
+
 echo "Compiling webview C++ wrapper..."
 c++ -c webview/core/src/webview.cc -o webview.o -std=c++11 \
     -DWEBVIEW_GTK -DWEBVIEW_API=extern \
@@ -62,11 +67,12 @@ c3c compile \
     src/core/rpc.c3 \
     src/core/errors.c3 \
     src/core/plugin.c3 \
-    src/features/system/ping.c3 \
+    src/features/ping/ping.c3 \
     src/features/system/system.c3 \
     src/features/git/repo.c3 \
     src/features/workspace/workspace.c3 \
     src/features/shell/shell.c3 \
+    src/features/sqlite/sqlite.c3 \
     webview.o \
     -z "$VCPKG_INC $VCPKG_LIB $VCPKG_LIBS \
         $(pkg-config --libs $PKG_DEPS) \
@@ -80,7 +86,7 @@ if [ -f "$PROJECT_DIR/tests/test_rpc_handlers.c3" ]; then
     echo ""
     echo "Compiling test binary..."
     c3c compile \
-        tests/test_rpc_handlers.c3 \
+        src/tests/test_rpc_handlers.c3 \
         src/bindings/webview.c3 \
         src/bindings/cjson.c3 \
         src/bindings/sqlite3.c3 \

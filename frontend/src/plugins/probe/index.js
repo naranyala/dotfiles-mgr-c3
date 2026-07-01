@@ -25,7 +25,7 @@ export async function init() {
 async function refresh() {
 	state.refreshing = true
 	try {
-		state.data = await window.rpc.systemProbe()
+		state.data = await window.rpc.shell.systemProbe()
 	} catch (e) { state.data = { error: e.message } }
 	state.refreshing = false
 }

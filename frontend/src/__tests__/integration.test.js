@@ -34,22 +34,24 @@ describe('RPC bridge pattern', () => {
 		globalThis.remove = async () => JSON.stringify({ success: true })
 
 		globalThis.window.rpc = globalThis.window.rpc || {}
-		for (const method of ['psList', 'psKill', 'systemProbe', 'exists', 'isDir', 'stat', 'mkdir', 'remove']) {
-			globalThis.window.rpc[method] = async (...args) => {
-				const res = await globalThis[method](...args)
+		for (const method of ['shell.psList', 'shell.psKill', 'shell.systemProbe', 'shell.exists', 'shell.isDir', 'shell.stat', 'shell.mkdir', 'shell.remove']) {
+			const name = method.split('.').pop()
+			globalThis.window.rpc[method.split('.')[0]] = globalThis.window.rpc[method.split('.')[0]] || {}
+			globalThis.window.rpc[method.split('.')[0]][name] = async (...args) => {
+				const res = await globalThis[name](...args)
 				try { return JSON.parse(res) } catch { return res }
 			}
 		}
 	})
 
 	it('rpc.proxy returns parsed JSON', async () => {
-		const res = await globalThis.window.rpc.psList('cpu')
+		const res = await globalThis.window.rpc.shell.psList('cpu')
 		expect(Array.isArray(res)).toBe(true)
 		expect(res[0].pid).toBe('1')
 	})
 
 	it('rpc.proxy returns object for systemProbe', async () => {
-		const res = await globalThis.window.rpc.systemProbe()
+		const res = await globalThis.window.rpc.shell.systemProbe()
 		expect(res.cpuCores).toBe(4)
 	})
 })

@@ -49,7 +49,7 @@ fn char* generate_id(char* name) {
     return id;
 }
 
-fn int main() {
+fn void test_main() {
     char* name = "Test";
     char* ws_id = generate_id(name);
     cjson::CJson workspaces = load_workspaces();
@@ -66,5 +66,4 @@ fn int main() {
     cjson::cJSON_Delete(workspaces);
     libc::free(json_str);
     libc::free(ws_id);
-    return 0;
 }
