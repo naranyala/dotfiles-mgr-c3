@@ -306,7 +306,7 @@ fn void handle_repo_info(webview::Webview w, char* id, cjson::CJson args) {
     libc::free(json_str);
 }
 
-// repo.tree - Get file tree
+// repo.tree - Get file tree (supports optional path param for subdirectory listing)
 fn void handle_repo_tree(webview::Webview w, char* id, cjson::CJson args) {
     if ((void*)args == null) {
         webview::webview_return(w, id, 1, "{\"error\": \"Missing arguments\"}");
@@ -328,6 +328,22 @@ fn void handle_repo_tree(webview::Webview w, char* id, cjson::CJson args) {
         libc::snprintf(&repo_path[0], 512, "%s/%s", (char*)&current_workspace[0], name);
     }
 
+    // Optional sub-path parameter (for subdirectory listing)
+    char[512] sub_path;
+    sub_path[0] = 0;
+    bool has_sub_path = false;
+    if (cjson::cJSON_GetArraySize(args) >= 3) {
+        cjson::CJson path_item = cjson::cJSON_GetArrayItem(args, 2);
+        if (cjson::cJSON_IsString(path_item)) {
+            char* p = cjson::cJSON_GetStringValue(path_item);
+            if (p != null && libc::strlen((ZString)p) > 0) {
+                libc::strncpy(&sub_path[0], p, 511);
+                sub_path[511] = 0;
+                has_sub_path = true;
+            }
+        }
+    }
+
     libgit2::GitRepository r;
     if (libgit2::git_repository_open(&r, &repo_path[0]) != 0) {
         webview::webview_return(w, id, 1, "{\"error\": \"Repository not found\"}");
@@ -342,9 +358,55 @@ fn void handle_repo_tree(webview::Webview w, char* id, cjson::CJson args) {
         if (libgit2::git_commit_lookup(&commit, r, libgit2::git_reference_target(head)) == 0) {
             libgit2::GitTree tree;
             if (libgit2::git_commit_tree(&tree, commit) == 0) {
-                int count = libgit2::git_tree_entrycount(tree);
+                libgit2::GitTree target_tree = tree;
+
+                // Navigate to sub-path if provided
+                if (has_sub_path) {
+                    bool found = true;
+                    char[512] work_path;
+                    libc::strncpy(&work_path[0], &sub_path[0], 511);
+                    work_path[511] = 0;
+
+                    char* token = libc::strtok((ZString)&work_path[0], (ZString)"/");
+                    while (token != null && found) {
+                        found = false;
+                        int count = libgit2::git_tree_entrycount(target_tree);
+                        for (int i = 0; i < count; i++) {
+                            libgit2::GitTreeEntry entry = libgit2::git_tree_entry_byindex(target_tree, (usz)i);
+                            if ((void*)entry != null) {
+                                if (libc::strcmp((ZString)libgit2::git_tree_entry_name(entry), (ZString)token) == 0) {
+                                    libgit2::GitTree sub_tree;
+                                    if (libgit2::git_tree_entry_type(entry) == libgit2::GIT_OBJECT_TREE) {
+                                        if (libgit2::git_tree_entry_to_object(&sub_tree, r, entry) == 0) {
+                                            if (target_tree != tree) libgit2::git_tree_free(target_tree);
+                                            target_tree = sub_tree;
+                                            found = true;
+                                        }
+                                    }
+                                    break;
+                                }
+                            }
+                        }
+                        token = libc::strtok(null, (ZString)"/");
+                    }
+                    if (!found) {
+                        // Path not found, return empty array
+                        if (target_tree != tree) libgit2::git_tree_free(target_tree);
+                        libgit2::git_tree_free(tree);
+                        libgit2::git_commit_free(commit);
+                        libgit2::git_reference_free(head);
+                        libgit2::git_repository_free(r);
+                        char* json_str = cjson::cJSON_PrintUnformatted(result);
+                        webview::webview_return(w, id, 0, json_str);
+                        cjson::cJSON_Delete(result);
+                        libc::free(json_str);
+                        return;
+                    }
+                }
+
+                int count = libgit2::git_tree_entrycount(target_tree);
                 for (int i = 0; i < count; i++) {
-                    libgit2::GitTreeEntry entry = libgit2::git_tree_entry_byindex(tree, (usz)i);
+                    libgit2::GitTreeEntry entry = libgit2::git_tree_entry_byindex(target_tree, (usz)i);
                     if ((void*)entry != null) {
                         cjson::CJson item = cjson::cJSON_CreateObject();
                         cjson::cJSON_AddStringToObject(item, "name", libgit2::git_tree_entry_name(entry));
@@ -353,6 +415,8 @@ fn void handle_repo_tree(webview::Webview w, char* id, cjson::CJson args) {
                         cjson::cJSON_AddItemToArray(result, item);
                     }
                 }
+
+                if (target_tree != tree) libgit2::git_tree_free(target_tree);
                 libgit2::git_tree_free(tree);
             }
             libgit2::git_commit_free(commit);

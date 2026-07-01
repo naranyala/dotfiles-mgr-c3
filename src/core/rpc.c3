@@ -140,6 +140,11 @@ fn int get_methods(char** out_methods, int max) {
     return count;
 }
 
+// Get count of registered methods
+fn int get_methods_count() {
+    return global_registry.count;
+}
+
 // --- RPC Handlers ---
 
 fn void handle_logs_get(webview::Webview w, char* id, cjson::CJson json) {

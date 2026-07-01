@@ -62,10 +62,11 @@ c3c compile \
     src/core/rpc.c3 \
     src/core/errors.c3 \
     src/core/plugin.c3 \
-    src/plugins/ping.c3 \
-    src/plugins/system.c3 \
-    src/plugins/repo.c3 \
-    src/plugins/workspace.c3 \
+    src/features/system/ping.c3 \
+    src/features/system/system.c3 \
+    src/features/git/repo.c3 \
+    src/features/workspace/workspace.c3 \
+    src/features/shell/shell.c3 \
     webview.o \
     -z "$VCPKG_INC $VCPKG_LIB $VCPKG_LIBS \
         $(pkg-config --libs $PKG_DEPS) \
@@ -73,3 +74,40 @@ c3c compile \
 
 echo ""
 echo "Build successful! Executable is 'dotfiles-mgr'"
+
+# Build test binary if test file exists
+if [ -f "$PROJECT_DIR/tests/test_rpc_handlers.c3" ]; then
+    echo ""
+    echo "Compiling test binary..."
+    c3c compile \
+        tests/test_rpc_handlers.c3 \
+        src/bindings/webview.c3 \
+        src/bindings/cjson.c3 \
+        src/bindings/sqlite3.c3 \
+        src/bindings/libgit2.c3 \
+        src/bindings/archive.c3 \
+        src/bindings/yaml.c3 \
+        src/bindings/sodium.c3 \
+        src/bindings/whereami.c3 \
+        src/bindings/tinyfiledialogs.c3 \
+        src/bindings/libzip.c3 \
+        src/core/rpc.c3 \
+        src/core/errors.c3 \
+        src/core/plugin.c3 \
+        src/features/system/ping.c3 \
+        src/features/system/system.c3 \
+        src/features/git/repo.c3 \
+        src/features/workspace/workspace.c3 \
+        src/features/shell/shell.c3 \
+        webview.o \
+        -o test_rpc \
+        -z "$VCPKG_INC $VCPKG_LIB $VCPKG_LIBS \
+            $(pkg-config --libs $PKG_DEPS) \
+            -lstdc++ -lpthread -lz -lm -ldl"
+
+    if [ $? -eq 0 ]; then
+        echo "Test binary built: ./test_rpc"
+    else
+        echo "Test build failed!"
+    fi
+fi

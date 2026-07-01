@@ -68,6 +68,7 @@ extern fn char* git_tree_entry_name(GitTreeEntry entry);
 extern fn int git_tree_entry_type(GitTreeEntry entry);
 extern fn GitOid* git_tree_entry_id(GitTreeEntry entry);
 extern fn int git_tree_entry_filemode(GitTreeEntry entry);
+extern fn int git_tree_entry_to_object(GitTree* out, GitRepository repo, GitTreeEntry entry);
 extern fn int git_tree_free(GitTree tree);
 
 // Blob (file content)

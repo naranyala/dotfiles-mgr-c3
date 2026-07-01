@@ -8,6 +8,8 @@
 *.s
 *.out
 
+**/node_modules
+
 build/
 examples/
 webview/

@@ -2,10 +2,11 @@ module main;
 import webview;
 import core::rpc;
 import core::errors;
-import plugins::ping;
-import plugins::system;
-import plugins::repo;
-import plugins::workspace;
+import features::ping;
+import features::system;
+import features::git;
+import features::workspace;
+import features::shell;
 import libc;
 import std::io;
 
@@ -15,17 +16,20 @@ fn int main() {
 
     int rc;
 
-    rc = plugins::ping::init();
+    rc = features::ping::init();
     if (rc != errors::ERR_OK) io::printfn("Failed to register ping: %d", rc);
 
-    rc = plugins::system::init();
+    rc = features::system::init();
     if (rc != errors::ERR_OK) io::printfn("Failed to register system: %d", rc);
 
-    rc = plugins::repo::init();
+    rc = features::git::init();
     if (rc != errors::ERR_OK) io::printfn("Failed to register repo: %d", rc);
 
-    rc = plugins::workspace::init();
+    rc = features::workspace::init();
     if (rc != errors::ERR_OK) io::printfn("Failed to register workspace: %d", rc);
+
+    rc = features::shell::init();
+    if (rc != errors::ERR_OK) io::printfn("Failed to register shell: %d", rc);
 
     webview::Webview w = webview::webview_create(1, null);
     if (!w) {

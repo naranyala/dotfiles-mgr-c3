@@ -123,10 +123,6 @@
 					}]
 			}]
 	}, {
-		"id":	"default",
-		"name":	"Default",
-		"groups":	[]
-	}, {
 		"id":	"sample",
 		"name":	"sample",
 		"groups":	[]
