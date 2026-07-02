@@ -69,7 +69,7 @@ export function effect(fn) {
 		if (typeof result === 'function') {
 			cleanupMap.get(run).add(result)
 		} else if (result instanceof Promise) {
-			result.then(r => { if (typeof r === 'function' && cleanupMap.has(run)) cleanupMap.get(run).add(r) })
+			result.then(r => { if (typeof r === 'function' && cleanupMap.has(run)) cleanupMap.get(run).add(r) }).catch(() => {})
 		}
 	}
 	run()

@@ -47,7 +47,7 @@ export function html(strings, ...vals) {
 			const prev = strings[i]
 
 			if (typeof v === 'function') {
-				const ematch = prev.match(/@(\w+)=\s*$/)
+				const ematch = prev.match(/@(\w+)=\s*"$/)
 				if (ematch) {
 					const evtType = ematch[1]
 					const id = `ev${uid++}`
@@ -115,7 +115,7 @@ export function each(items, fn) {
 	return new TemplateResult(parts.join(''), events, children)
 }
 
-function reconcileNode(oldN, newN) {
+function reconcileNode(oldN, newN, eventMap) {
 	if (oldN.nodeType !== newN.nodeType || oldN.nodeName !== newN.nodeName) return false
 
 	if (oldN.nodeType === Node.TEXT_NODE || oldN.nodeType === Node.COMMENT_NODE) {
@@ -129,57 +129,211 @@ function reconcileNode(oldN, newN) {
 	const newAttrs = new Map()
 	for (const a of Array.from(newEl.attributes)) newAttrs.set(a.name, a.value)
 
+	// Handle .ref
+	if (newAttrs.has('.ref')) {
+		const refVal = newAttrs.get('.ref')
+		if (typeof refVal === 'function') {
+			refVal(oldEl)
+		} else if (refVal && typeof refVal === 'object' && 'value' in refVal) {
+			refVal.value = oldEl
+		}
+		newAttrs.delete('.ref')
+	}
+
+	// Handle @event bindings — always re-bind from new template's data-e
+	if (newAttrs.has('data-e') && eventMap) {
+		const full = newAttrs.get('data-e')
+		const colon = full.indexOf(':')
+		if (colon !== -1) {
+			const evtType = full.slice(0, colon)
+			const id = full.slice(colon + 1)
+			const handler = eventMap.get(id)
+			if (handler) {
+				oldEl.removeEventListener(evtType, oldEl[`__ev_${evtType}`])
+				oldEl.addEventListener(evtType, handler)
+				oldEl[`__ev_${evtType}`] = handler
+			}
+		}
+		newAttrs.delete('data-e')
+	}
+
+	// Sync regular attributes (skip our special ones)
+	const skipAttrs = new Set(['.ref', 'data-e', ':value', ':checked'])
 	for (const a of Array.from(oldEl.attributes)) {
-		if (a.name.startsWith('data-e')) continue
+		if (skipAttrs.has(a.name)) continue
 		if (!newAttrs.has(a.name)) oldEl.removeAttribute(a.name)
 	}
 	for (const [name, val] of newAttrs) {
+		if (skipAttrs.has(name)) continue
 		if (oldEl.getAttribute(name) !== val) oldEl.setAttribute(name, val)
 	}
 
-	reconcileChildren(oldEl, newEl)
+	// Handle :value — force-set DOM property for input/select/textarea
+	if (newAttrs.has(':value')) {
+		const val = newAttrs.get(':value')
+		if (oldEl.tagName === 'INPUT' || oldEl.tagName === 'TEXTAREA' || oldEl.tagName === 'SELECT') {
+			if (String(oldEl.value) !== String(val)) {
+				oldEl.value = val
+			}
+		} else if (typeof oldEl.value !== 'undefined' && oldEl.value !== val) {
+			oldEl.value = val
+		}
+	}
+
+	// Handle :checked — force-set DOM property for checkboxes/radios
+	if (newAttrs.has(':checked')) {
+		const val = newAttrs.get(':checked')
+		const boolVal = val === 'true' || val === true
+		if (oldEl.checked !== boolVal) {
+			oldEl.checked = boolVal
+		}
+	}
+
+	reconcileChildren(oldEl, newEl, eventMap)
 
 	return true
 }
 
-function reconcileChildren(oldParent, newParent) {
+function reconcileChildren(oldParent, newParent, eventMap) {
 	const oldKids = Array.from(oldParent.childNodes)
 	const newKids = Array.from(newParent.childNodes)
-	const max = Math.max(oldKids.length, newKids.length)
 
-	for (let i = 0; i < max; i++) {
-		const oldN = oldKids[i]
-		const newN = newKids[i]
+	// Build key maps for efficient diffing
+	const oldKeyMap = new Map()
+	const oldKeyed = []
+	const oldUnkeyed = []
+
+	for (const node of oldKids) {
+		if (node instanceof Element && node.hasAttribute('data-key')) {
+			const key = node.getAttribute('data-key')
+			oldKeyMap.set(key, node)
+			oldKeyed.push({ key, node })
+		} else {
+			oldUnkeyed.push(node)
+		}
+	}
+
+	const newKeyed = []
+	const newUnkeyed = []
+
+	for (const node of newKids) {
+		if (node instanceof Element && node.hasAttribute('data-key')) {
+			newKeyed.push({ key: node.getAttribute('data-key'), node })
+		} else {
+			newUnkeyed.push(node)
+		}
+	}
+
+	// Phase 1: Process keyed nodes — reuse existing DOM by key
+	const usedOldKeys = new Set()
+	const resultNodes = []
+
+	for (const { key, node: newNode } of newKeyed) {
+		const existing = oldKeyMap.get(key)
+		if (existing) {
+			usedOldKeys.add(key)
+			reconcileNode(existing, newNode, eventMap)
+			resultNodes.push(existing)
+		} else {
+			const imported = document.importNode(newNode, true)
+			bindEventsOnNode(imported, eventMap)
+			resultNodes.push(imported)
+		}
+	}
+
+	// Phase 2: Process unkeyed nodes — position-based reconciliation
+	const maxUnkeyed = Math.max(oldUnkeyed.length, newUnkeyed.length)
+	for (let i = 0; i < maxUnkeyed; i++) {
+		const oldN = oldUnkeyed[i]
+		const newN = newUnkeyed[i]
 
 		if (!oldN && newN) {
-			oldParent.appendChild(document.importNode(newN, true))
+			const imported = document.importNode(newN, true)
+			bindEventsOnNode(imported, eventMap)
+			resultNodes.push(imported)
 			continue
 		}
 		if (oldN && !newN) {
-			oldParent.removeChild(oldN)
 			continue
 		}
 		if (!oldN || !newN) continue
 
-		if (oldN instanceof Element && newN instanceof Element && oldN.hasAttribute('data-key') && newN.getAttribute('data-key') !== oldN.getAttribute('data-key')) {
-			const key = newN.getAttribute('data-key')
-			const existing = key ? oldParent.querySelector(`[data-key="${key.replace(/"/g, '\\"')}"]`) : null
-			if (existing) {
-				oldParent.insertBefore(document.importNode(newN, true), oldN)
-				continue
-			}
+		if (reconcileNode(oldN, newN, eventMap)) {
+			resultNodes.push(oldN)
+		} else {
+			const imported = document.importNode(newN, true)
+			bindEventsOnNode(imported, eventMap)
+			resultNodes.push(imported)
 		}
+	}
 
-		if (!reconcileNode(oldN, newN)) {
-			oldParent.replaceChild(document.importNode(newN, true), oldN)
+	// Phase 3: Remove old keyed nodes that weren't reused
+	for (const [key, node] of oldKeyMap) {
+		if (!usedOldKeys.has(key)) {
+			node.remove()
+		}
+	}
+
+	// Phase 4: Reconcile the DOM — only add/remove if order changed
+	const currentKids = Array.from(oldParent.childNodes)
+
+	let changed = false
+	if (resultNodes.length !== currentKids.length) {
+		changed = true
+	} else {
+		for (let i = 0; i < resultNodes.length; i++) {
+			if (resultNodes[i] !== currentKids[i]) { changed = true; break }
+		}
+	}
+
+	if (changed) {
+		while (oldParent.firstChild) oldParent.removeChild(oldParent.firstChild)
+		for (const node of resultNodes) {
+			oldParent.appendChild(node)
 		}
 	}
 }
 
-export function reconcile(el, newHtml) {
+function bindEventsOnNode(node, eventMap) {
+	if (!node.nodeType) return
+	if (node.nodeType === Node.ELEMENT_NODE) {
+		if (node.hasAttribute(':value')) {
+			const val = node.getAttribute(':value')
+			if (node.tagName === 'INPUT' || node.tagName === 'TEXTAREA' || node.tagName === 'SELECT') {
+				node.value = val
+			}
+			node.removeAttribute(':value')
+		}
+		if (node.hasAttribute(':checked')) {
+			const val = node.getAttribute(':checked')
+			node.checked = val === 'true' || val === true
+			node.removeAttribute(':checked')
+		}
+		if (node.hasAttribute('data-e') && eventMap) {
+			const full = node.getAttribute('data-e')
+			const colon = full.indexOf(':')
+			if (colon !== -1) {
+				const evtType = full.slice(0, colon)
+				const id = full.slice(colon + 1)
+				const handler = eventMap.get(id)
+				if (handler) {
+					node.addEventListener(evtType, handler)
+				}
+			}
+			node.removeAttribute('data-e')
+		}
+	}
+	if (node.childNodes) {
+		for (const child of node.childNodes) {
+			bindEventsOnNode(child, eventMap)
+		}
+	}
+}
+
+export function reconcile(el, newHtml, eventMap) {
 	const tpl = document.createElement('template')
 	tpl.innerHTML = newHtml.trim()
-	reconcileChildren(el, tpl.content)
+	reconcileChildren(el, tpl.content, eventMap)
 }
 
 function flatten(result) {
@@ -193,21 +347,35 @@ function flatten(result) {
 	return html
 }
 
+function flattenEvents(result) {
+	const all = new Map(result.events)
+	for (const [, child] of result.children) {
+		for (const [k, v] of flattenEvents(child)) {
+			all.set(k, v)
+		}
+	}
+	return all
+}
+
 export function render(result, container) {
 	const html = flatten(result)
+	const allEvents = flattenEvents(result)
 
-	reconcile(container, html)
+	reconcile(container, html, allEvents)
 
-	const all = container.querySelectorAll('[data-e]')
-	for (const el of all) {
+	// Safety net: bind any remaining unbound events
+	const elems = container.querySelectorAll('[data-e]')
+	for (const el of elems) {
 		const full = el.getAttribute('data-e')
 		const colon = full.indexOf(':')
 		if (colon === -1) continue
 		const evtType = full.slice(0, colon)
 		const id = full.slice(colon + 1)
-		const handler = result.events.get(id)
+		const handler = allEvents.get(id)
 		if (handler) {
+			if (el[`__ev_${evtType}`]) el.removeEventListener(evtType, el[`__ev_${evtType}`])
 			el.addEventListener(evtType, handler)
+			el[`__ev_${evtType}`] = handler
 			el.removeAttribute('data-e')
 		}
 	}

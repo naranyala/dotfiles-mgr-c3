@@ -4,16 +4,54 @@ import * as health from '../plugins/health/index.js'
 import { renderHomepageGrid } from '../components/HomepageGrid.js'
 import { getCategorizedLaunchers } from './categories.js'
 
+export const BOTTOM_ITEMS = [
+	{ id: 'quick', label: 'Quick', title: 'Quick Actions' },
+	{ id: 'logs', label: 'Logs', title: 'Terminal Logs' },
+	{ id: 'health', label: 'Health', title: 'System Health' },
+]
+export const SIDE_ITEMS = [
+	{ id: 'info', label: 'Info' },
+	{ id: 'plugins', label: 'Plugins' },
+	{ id: 'debug', label: 'Debug' },
+]
+
 export function renderTabBar(tabs, active) {
 	const hasCloseable = tabs.some(t => t.canClose)
+	const homeTab = tabs[0]
+	const otherTabs = tabs.slice(1)
 	return `<div class="tab-bar">
-		${tabs.map(t => `
-			<div class="tab${t.id === active ? ' active' : ''}" data-tab="${t.id}">
-				<span class="tab-icon">${t.icon}</span>
-				<span>${t.title}</span>
-				${t.canClose ? `<button class="tab-close" data-close-tab="${t.id}">✕</button>` : ''}
-			</div>`).join('')}
+		${homeTab ? `<div class="tab tab-home${homeTab.id === active ? ' active' : ''}" data-tab="${homeTab.id}">
+			<span class="tab-label">${homeTab.title}</span>
+		</div>` : ''}
+		<div class="tab-bar-scroll">
+			${otherTabs.map(t => `
+				<div class="tab${t.id === active ? ' active' : ''}" data-tab="${t.id}">
+					${t.canClose ? `<button class="tab-close" data-close-tab="${t.id}">✕</button>` : ''}
+					<span class="tab-label">${t.title}</span>
+				</div>`).join('')}
+		</div>
 		${hasCloseable ? '<button class="tab-close-all" data-close-all>✕ Close All</button>' : ''}
+	</div>`
+}
+
+export function renderBreadcrumbsBar(tabs, active) {
+	const activeTab = tabs.find(t => t.id === active)
+	if (!activeTab) return ''
+
+	const launcher = launchers.find(l => l.id === activeTab.id)
+	const group = launcher ? launcher.group : ''
+
+	const parts = ['Home']
+	if (group && activeTab.id !== 'home') parts.push(group)
+	if (activeTab.id !== 'home') parts.push(activeTab.title)
+	const path = parts.join(' > ')
+
+	return `<div class="breadcrumbs-bar">
+		<span class="breadcrumbs-path">${parts.map((p, i) => {
+			const isLast = i === parts.length - 1
+			return `<span class="breadcrumb${isLast ? ' active' : ''}">${p}</span>${!isLast ? '<span class="breadcrumb-sep">›</span>' : ''}`
+		}).join('')}</span>
+		<button class="btn-copy-breadcrumb" data-copy-text="${path}" title="Copy breadcrumb path">📋</button>
 	</div>`
 }
 
@@ -30,7 +68,10 @@ export function renderTabContent(tabs, active, q, visible) {
 							</div>
 						</div>
 						${visible.length > 0 ? (() => {
+								const HIDDEN_IDS = new Set(['dashboard', 'search-everywhere', 'path-toolkit'])
 								const groups = visible.reduce((acc, c) => {
+									if (c.group.startsWith('_')) return acc;
+									if (HIDDEN_IDS.has(c.id)) return acc;
 									acc[c.group] = acc[c.group] || [];
 									acc[c.group].push(c);
 									return acc;
@@ -39,6 +80,7 @@ export function renderTabContent(tabs, active, q, visible) {
 									<div class="menu-group">
 										<div class="menu-group-title">
 											<span>${group}</span>
+											<span class="group-count">${items.length}</span>
 											<button class="btn-copy-group" data-copy-text="homepage > ${group}" title="Copy group path">📋</button>
 										</div>
 										<div class="launcher-grid">
@@ -59,21 +101,13 @@ export function renderTabContent(tabs, active, q, visible) {
 	</div>`
 }
 
-export function renderStatusBar(bottomOpen, bottomTab, sideOpen, sideTab) {
+export function renderStatusBar(bottomOpen, bottomTab, sideOpen, sideTab, hiddenBottom = [], hiddenSide = []) {
 	return `<div class="status-bar">
 		<div class="status-left">
-			<button class="sb-btn${bottomOpen ? ' active' : ''}" id="btn-bottom-drawer">Drawer</button>
-			<span class="sb-sep"></span>
-			<button class="sb-btn${bottomTab === 'quick' && bottomOpen ? ' active' : ''}" data-bottom-tab="quick">Quick</button>
-			<button class="sb-btn${bottomTab === 'logs' && bottomOpen ? ' active' : ''}" data-bottom-tab="logs">Logs</button>
-			<button class="sb-btn${bottomTab === 'health' && bottomOpen ? ' active' : ''}" data-bottom-tab="health">Health</button>
+			<button class="sb-btn${bottomOpen ? ' active' : ''}" id="btn-bottom-drawer" title="Bottom Drawer">⊞ Panels</button>
 		</div>
 		<div class="status-right">
-			<button class="sb-btn${sideTab === 'info' && sideOpen ? ' active' : ''}" data-side-tab="info">Info</button>
-			<button class="sb-btn${sideTab === 'plugins' && sideOpen ? ' active' : ''}" data-side-tab="plugins">Plugins</button>
-			<button class="sb-btn${sideTab === 'debug' && sideOpen ? ' active' : ''}" data-side-tab="debug">Debug</button>
-			<span class="sb-sep"></span>
-			<button class="sb-btn${sideOpen ? ' active' : ''}" id="btn-side-panel">Panel</button>
+			<button class="sb-btn${sideOpen ? ' active' : ''}" id="btn-side-panel" title="Side Panel">⊟ Info</button>
 		</div>
 	</div>`
 }
@@ -82,72 +116,117 @@ export function renderOverlay(bottomOpen, sideOpen) {
 	return `<div class="drawer-overlay${bottomOpen || sideOpen ? ' visible' : ''}"></div>`
 }
 
-export function renderBottomDrawer(bottomOpen, bottomTab) {
-	const title = bottomTab === 'quick' ? 'Quick Actions' : bottomTab === 'logs' ? 'Terminal Logs' : 'System Health'
-	return `<div class="bottom-drawer${bottomOpen ? ' open' : ''}">
-		<div class="drawer-handle"></div>
-		<div class="drawer-header">
-			<span class="drawer-title">${title}</span>
-			<button class="drawer-close" id="btn-close-bottom-drawer">✕</button>
+export function renderBottomVPanel(bottomOpen, bottomTab) {
+	const icons = { quick: '⚡', logs: '📜', health: '💚' }
+	return `<div class="vpanel vpanel-bottom${bottomOpen ? ' open' : ''}">
+		<div class="vpanel-header">
+			<span class="vpanel-title">Bottom Panels</span>
+			<button class="vpanel-close" id="btn-close-bottom-drawer">✕</button>
 		</div>
-		<div class="drawer-tabs">
-			<button class="drawer-tab${bottomTab === 'quick' ? ' active' : ''}" data-bottom-tab="quick">Quick</button>
-			<button class="drawer-tab${bottomTab === 'logs' ? ' active' : ''}" data-bottom-tab="logs">Logs</button>
-			<button class="drawer-tab${bottomTab === 'health' ? ' active' : ''}" data-bottom-tab="health">Health</button>
-		</div>
-		<div class="drawer-body">
-			${bottomTab === 'quick' ? `
-				${(() => {
-					const filtered = launchers.filter(c => c.id !== 'dashboard');
-					const groups = filtered.reduce((acc, c) => {
-						acc[c.group] = acc[c.group] || [];
-						acc[c.group].push(c);
-						return acc;
-					}, {});
-					return Object.entries(groups).map(([group, items]) => `
-						<div class="menu-group">
-							<div class="menu-group-title">
-								<span>${group}</span>
-								<button class="btn-copy-group" data-copy-text="homepage > ${group}" title="Copy group path">📋</button>
-							</div>
-							<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px">
-								${items.map(c => `
-									<div class="launcher-item" data-open-tab="${c.id}" style="padding:10px 14px">
-										<div class="launcher-info">
-											<div class="launcher-title" style="font-size:0.85rem">${c.title}</div>
-											<div class="launcher-desc" style="font-size:0.72rem">${c.desc}</div>
-										</div>
-									</div>`).join('')}
-							</div>
-						</div>`).join('');
-				})()}
-				`
-			: bottomTab === 'logs' ? `
-				<terminal-view style="height:100%;min-height:200px"></terminal-view>`
-			: `
-				${health.render()}`
-			}
+		<div class="vpanel-list" id="vpanel-bottom-list">
+			${BOTTOM_ITEMS.map(i => `
+				<div class="vpanel-item" draggable="true" data-sort-id="${i.id}" data-group="bottom">
+					<span class="vpanel-item-icon">${icons[i.id] || '•'}</span>
+					<span class="vpanel-item-label">${i.label}</span>
+					<span class="vpanel-item-drag">⋮⋮</span>
+				</div>
+			`).join('')}
 		</div>
 	</div>`
 }
 
-export function renderSidePanel(sideOpen, sideTab, tabs, active, bottomOpen, q) {
-	return `<div class="side-panel${sideOpen ? ' open' : ''}">
-		<div class="side-header">
-			<span class="side-title">${sideTab === 'info' ? 'About' : sideTab === 'plugins' ? 'Plugins' : 'Debug Inspector'}</span>
-			<button class="side-close" id="btn-close-side-panel">✕</button>
+export function renderSideVPanel(sideOpen, sideTab) {
+	const icons = { info: 'ℹ', plugins: '🧩', debug: '🐛' }
+	const labels = { info: 'About', plugins: 'Plugins', debug: 'Debug' }
+	return `<div class="vpanel vpanel-right${sideOpen ? ' open' : ''}">
+		<div class="vpanel-header">
+			<span class="vpanel-title">Side Panels</span>
+			<button class="vpanel-close" id="btn-close-side-panel">✕</button>
 		</div>
-		<div class="side-tabs">
-			<button class="side-tab${sideTab === 'info' ? ' active' : ''}" data-side-tab="info">ℹ Info</button>
-			<button class="side-tab${sideTab === 'plugins' ? ' active' : ''}" data-side-tab="plugins">⚙ Plugins</button>
-			<button class="side-tab${sideTab === 'debug' ? ' active' : ''}" data-side-tab="debug">⌘ Debug</button>
-		</div>
-		<div class="side-body">
-			${sideTab === 'info' ? renderSideInfo()
-			: sideTab === 'plugins' ? renderSidePlugins()
-			: renderSideDebug(tabs, active, bottomOpen, q)}
+		<div class="vpanel-list" id="vpanel-side-list">
+			${SIDE_ITEMS.map(i => `
+				<div class="vpanel-item" draggable="true" data-sort-id="${i.id}" data-group="side">
+					<span class="vpanel-item-icon">${icons[i.id] || '•'}</span>
+					<span class="vpanel-item-label">${labels[i.id] || i.label}</span>
+					<span class="vpanel-item-drag">⋮⋮</span>
+				</div>
+			`).join('')}
 		</div>
 	</div>`
+}
+
+function renderSortableTabs(items, order, activeId, prefix, hidden) {
+	const ordered = order.map(id => items.find(i => i.id === id)).filter(Boolean)
+	return ordered.map(i => {
+		const isHidden = hidden.includes(i.id)
+		return `<span class="ctrl-tab${isHidden ? ' hidden' : ''}" data-id="${i.id}" data-group="${prefix}">
+			<button class="ctrl-tab-eye" data-toggle-vis="${prefix}:${i.id}" title="${isHidden ? 'Show' : 'Hide'} ${i.label}">${isHidden ? '◌' : '●'}</button>
+			<span class="ctrl-tab-label">${i.label}</span>
+		</span>`
+	}).join('')
+}
+
+export function renderBottomDrawer(bottomOpen, bottomTab, bottomOrder, hiddenBottom = []) {
+	const active = BOTTOM_ITEMS.find(i => i.id === bottomTab)
+	return `<div class="bottom-drawer${bottomOpen ? ' open' : ''}">
+		<div class="drawer-handle"></div>
+		<div class="drawer-header">
+			<span class="drawer-title">${active ? active.title : ''}</span>
+			<button class="drawer-close" id="btn-close-bottom-drawer">✕</button>
+		</div>
+		<div class="drawer-tabs-bar">
+			${renderSortableTabs(BOTTOM_ITEMS, bottomOrder, bottomTab, 'bottom', hiddenBottom)}
+		</div>
+		<div class="drawer-body">
+			${active ? drawerContent(bottomTab) : ''}
+		</div>
+	</div>`
+}
+
+export function renderSidePanel(sideOpen, sideTab, tabs, active, bottomOpen, q, sideOrder, hiddenSide = []) {
+	const activeSide = SIDE_ITEMS.find(i => i.id === sideTab)
+	return `<div class="side-panel${sideOpen ? ' open' : ''}">
+		<div class="side-header">
+			<span class="side-title">${activeSide ? (activeSide.id === 'info' ? 'About' : activeSide.id === 'plugins' ? 'Plugins' : 'Debug Inspector') : ''}</span>
+			<button class="side-close" id="btn-close-side-panel">✕</button>
+		</div>
+		<div class="panel-tabs-bar">
+			${renderSortableTabs(SIDE_ITEMS, sideOrder, sideTab, 'side', hiddenSide)}
+		</div>
+		<div class="side-body">
+			${sideTab === 'info' ? renderSideInfo() : sideTab === 'plugins' ? renderSidePlugins() : renderSideDebug(tabs, active, bottomOpen, q)}
+		</div>
+	</div>`
+}
+
+function drawerContent(tabId) {
+	if (tabId === 'quick') {
+		const filtered = launchers.filter(c => c.id !== 'dashboard');
+		const groups = filtered.reduce((acc, c) => {
+			acc[c.group] = acc[c.group] || [];
+			acc[c.group].push(c);
+			return acc;
+		}, {});
+		return Object.entries(groups).map(([group, items]) => `
+			<div class="menu-group">
+				<div class="menu-group-title">
+					<span>${group}</span>
+					<span class="group-count">${items.length}</span>
+					<button class="btn-copy-group" data-copy-text="homepage > ${group}" title="Copy group path">📋</button>
+				</div>
+				<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px">
+					${items.map(c => `
+						<div class="launcher-item" data-open-tab="${c.id}" style="padding:10px 14px">
+							<div class="launcher-info">
+								<div class="launcher-title" style="font-size:0.85rem">${c.title}</div>
+								<div class="launcher-desc" style="font-size:0.72rem">${c.desc}</div>
+							</div>
+						</div>`).join('')}
+				</div>
+			</div>`).join('');
+	}
+	if (tabId === 'logs') return '<terminal-view style="height:100%;min-height:200px"></terminal-view>'
+	return health.render()
 }
 
 function renderSideInfo() {

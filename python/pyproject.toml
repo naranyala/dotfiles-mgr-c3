@@ -1,0 +1,9 @@
+[project]
+name = "dotfiles-mgr-python"
+version = "0.1.0"
+description = "Minimal Python services for dotfiles-mgr-c3"
+requires-python = ">=3.10"
+# No root deps — each service manages its own.
+
+[tool.uv.workspace]
+members = ["llama-server", "tts-runner", "md-to-pdf", "pdf-to-speech"]

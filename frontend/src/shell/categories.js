@@ -9,19 +9,27 @@ export function getCategorizedLaunchers() {
     const CATEGORIES = {
         '🖥️ System': {
             icon: '🖥️',
-            items: ['dashboard', 'system', 'health', 'task-manager', 'network', 'metrics']
+            items: ['system', 'health', 'task-manager', 'network', 'metrics']
         },
-        '📂 Repository': {
-            icon: '📂',
+        'System Tools': {
+            icon: '🛠️',
             items: ['git', 'files', 'fstree', 'search', 'git-summary']
         },
         '🛠️ Tools': {
             icon: '🛠️',
-            items: ['commands', 'shell', 'sqlite', 'filetools', 'tools']
+            items: ['commands', 'shell', 'sqlite', 'filetools', 'tools', 'job-applicant-tracker']
         },
-        '💻 Dotfiles Mini Apps': {
+        'manage dotfiles': {
             icon: '💻',
             items: ['theme', 'env-manager', 'dotfiles-git', 'dotfiles-shell', 'dotfiles-vim', 'dotfiles-tmux', 'dotfiles-ssh', 'dotfiles-editor', 'dotfiles-sync', 'dotfiles-bashrc']
+        },
+        '🧠 LLM-Driven Content Creation': {
+            icon: '🧠',
+            items: ['llama-server', 'tts-runner', 'md-to-pdf', 'pdf-to-speech', 'thumbnail-maker']
+        },
+        '🧩 Component Challenge': {
+            icon: '🧩',
+            items: ['form-wizard', 'sliding-drawer', 'modal-backdrop', 'treeview', 'calculator', 'accordion', 'codeblock']
         }
     }
 

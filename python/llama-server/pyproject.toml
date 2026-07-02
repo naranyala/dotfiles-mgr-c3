@@ -1,0 +1,6 @@
+[project]
+name = "llama-server"
+version = "0.1.0"
+description = "LLM inference server — stdlib-only wrapper around llama-server binary"
+requires-python = ">=3.10"
+dependencies = []

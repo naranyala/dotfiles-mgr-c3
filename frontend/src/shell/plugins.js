@@ -17,12 +17,8 @@ import * as sqlite from '../plugins/sqlite/index.js'
 import * as envManager from '../plugins/env-manager/index.js'
 import * as processMonitor from '../plugins/process-monitor/index.js'
 import * as taskManager from '../plugins/task-manager/index.js'
-import * as pathToolkit from '../plugins/path-toolkit/index.js'
-import * as clipboardTools from '../plugins/clipboard-tools/index.js'
-import * as fileInspector from '../plugins/file-inspector/index.js'
 import * as searchEverywhere from '../plugins/search-everywhere/index.js'
 import * as backendState from '../plugins/backend-state/index.js'
-import * as workspaceCli from '../plugins/workspace-cli/index.js'
 import * as dotfilesGit from '../plugins/dotfiles-git/index.js'
 import * as dotfilesShell from '../plugins/dotfiles-shell/index.js'
 import * as dotfilesVim from '../plugins/dotfiles-vim/index.js'
@@ -33,10 +29,23 @@ import * as dotfilesSync from '../plugins/dotfiles-sync/index.js'
 import * as gitSummary from '../plugins/git-summary/index.js'
 import * as dotfilesBashrc from '../plugins/dotfiles-bashrc/index.js'
 import * as manpageReader from '../plugins/manpage-reader/index.js'
+import * as jobApplicantTracker from '../plugins/job-applicant-tracker/index.js'
+import * as llamaServer from '../plugins/llama-server/index.js'
+import * as ttsRunner from '../plugins/tts-runner/index.js'
+import * as mdToPdf from '../plugins/md-to-pdf/index.js'
+import * as pdfToSpeech from '../plugins/pdf-to-speech/index.js'
+import * as thumbnailMaker from '../plugins/thumbnail-maker/index.js'
+import * as formWizard from '../plugins/form-wizard/index.js'
+import * as slidingDrawer from '../plugins/sliding-drawer/index.js'
+import * as modalBackdrop from '../plugins/modal-backdrop/index.js'
+import * as treeview from '../plugins/treeview/index.js'
+import * as calculator from '../plugins/calculator/index.js'
+import * as accordion from '../plugins/accordion/index.js'
+import * as codeblock from '../plugins/codeblock/index.js'
 
-export const plugins = [system, git, files, tools, health, processes, commands, network, probe, filetools, theme, search, metrics, fstree, sqlite, envManager, processMonitor, taskManager, pathToolkit, clipboardTools, fileInspector, searchEverywhere, backendState, workspaceCli, dotfilesGit, dotfilesShell, dotfilesVim, dotfilesTmux, dotfilesSsh, dotfilesEditor, dotfilesSync, gitSummary, dotfilesBashrc, manpageReader]
+export const plugins = [system, git, files, tools, health, processes, commands, network, probe, filetools, theme, search, metrics, fstree, sqlite, envManager, processMonitor, taskManager, searchEverywhere, backendState, dotfilesGit, dotfilesShell, dotfilesVim, dotfilesTmux, dotfilesSsh, dotfilesEditor, dotfilesSync, gitSummary, dotfilesBashrc, manpageReader, jobApplicantTracker, llamaServer, ttsRunner, mdToPdf, pdfToSpeech, thumbnailMaker, formWizard, slidingDrawer, modalBackdrop, treeview, calculator, accordion, codeblock]
 
-const pluginNames = ['system', 'git', 'files', 'tools', 'health', 'processes', 'commands', 'network', 'probe', 'filetools', 'theme', 'search', 'metrics', 'fstree', 'sqlite', 'envManager', 'processMonitor', 'taskManager', 'pathToolkit', 'clipboardTools', 'fileInspector', 'searchEverywhere', 'backendState', 'workspaceCli', 'dotfilesGit', 'dotfilesShell', 'dotfilesVim', 'dotfilesTmux', 'dotfilesSsh', 'dotfilesEditor', 'dotfilesSync', 'gitSummary', 'dotfilesBashrc', 'manpageReader']
+const pluginNames = ['system', 'git', 'files', 'tools', 'health', 'processes', 'commands', 'network', 'probe', 'filetools', 'theme', 'search', 'metrics', 'fstree', 'sqlite', 'envManager', 'processMonitor', 'taskManager', 'searchEverywhere', 'backendState', 'dotfilesGit', 'dotfilesShell', 'dotfilesVim', 'dotfilesTmux', 'dotfilesSsh', 'dotfilesEditor', 'dotfilesSync', 'gitSummary', 'dotfilesBashrc', 'manpageReader', 'jobApplicantTracker', 'llamaServer', 'ttsRunner', 'mdToPdf', 'pdfToSpeech', 'thumbnailMaker', 'formWizard', 'slidingDrawer', 'modal-backdrop', 'treeview', 'calculator', 'accordion', 'codeblock']
 
 for (let i = 0; i < plugins.length; i++) {
 	registry.register({ name: pluginNames[i], ...plugins[i] })

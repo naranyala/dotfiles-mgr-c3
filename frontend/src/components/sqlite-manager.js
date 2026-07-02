@@ -1,7 +1,33 @@
 import { ReactiveComponent } from '../core/component.js'
 import { signal } from '../core/signals.js'
+import { componentStyles } from '../shared/component-styles.js'
+
+const styles = componentStyles(`
+    .sqlite-manager {
+        display: grid;
+        grid-template-columns: 200px 1fr;
+        grid-template-rows: auto 1fr auto;
+        height: 100%;
+        gap: 1px;
+        background: #334155;
+        overflow: hidden;
+    }
+    .header { grid-column: 1 / -1; background: #1e293b; padding: 0.75rem; display: flex; gap: 1rem; align-items: center; border-bottom: 1px solid #334155; }
+    .sidebar { background: #0f172a; padding: 0.75rem; overflow-y: auto; border-right: 1px solid #334155; }
+    .main { background: #1e293b; display: flex; flex-direction: column; overflow: hidden; }
+    .toolbar { padding: 0.75rem; background: #334155; display: flex; gap: 0.5rem; align-items: center; }
+    .grid-container { flex: 1; overflow: auto; padding: 0.75rem; }
+    .footer { grid-column: 1 / -1; background: #0f172a; padding: 0.75rem; border-top: 1px solid #334155; display: flex; flex-direction: column; gap: 0.5rem; }
+    .table-list-item { padding: 0.4rem 0.75rem; cursor: pointer; border-radius: 4px; margin-bottom: 0.25rem; font-size: 0.9rem; }
+    .table-list-item:hover { background: #1e293b; }
+    .table-list-item.active { background: #3b82f6; color: white; }
+    .row-editor { background: #0f172a; padding: 1rem; border-radius: 8px; margin-bottom: 1rem; border: 1px solid #3b82f6; }
+    .row-form { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 1rem; margin-bottom: 1rem; }
+    .form-group { display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.75rem; }
+`)
 
 export class SqliteManagerComponent extends ReactiveComponent {
+    static styles = styles
     constructor() {
         super()
         this.dbPath = signal('demo.db')
@@ -154,137 +180,6 @@ export class SqliteManagerComponent extends ReactiveComponent {
         const loading = this.loading.value
 
         return `
-        <style>
-            .sqlite-manager {
-                display: grid;
-                grid-template-columns: 200px 1fr;
-                grid-template-rows: auto 1fr auto;
-                height: 100%;
-                font-family: inherit;
-                color: #f8fafc;
-                gap: 1px;
-                background: #334155;
-                overflow: hidden;
-            }
-            .header {
-                grid-column: 1 / -1;
-                background: #1e293b;
-                padding: 0.75rem;
-                display: flex;
-                gap: 1rem;
-                align-items: center;
-                border-bottom: 1px solid #334155;
-            }
-            .sidebar {
-                background: #0f172a;
-                padding: 0.75rem;
-                overflow-y: auto;
-                border-right: 1px solid #334155;
-            }
-            .main {
-                background: #1e293b;
-                display: flex;
-                flex-direction: column;
-                overflow: hidden;
-            }
-            .toolbar {
-                padding: 0.75rem;
-                background: #334155;
-                display: flex;
-                gap: 0.5rem;
-                align-items: center;
-            }
-            .grid-container {
-                flex: 1;
-                overflow: auto;
-                padding: 0.75rem;
-            }
-            .footer {
-                grid-column: 1 / -1;
-                background: #0f172a;
-                padding: 0.75rem;
-                border-top: 1px solid #334155;
-                display: flex;
-                flex-direction: column;
-                gap: 0.5rem;
-            }
-            
-            input, textarea {
-                background: #0f172a;
-                border: 1px solid #475569;
-                color: #f8fafc;
-                padding: 0.4rem;
-                border-radius: 4px;
-            }
-            button {
-                background: #3b82f6;
-                color: white;
-                border: none;
-                padding: 0.4rem 0.8rem;
-                border-radius: 4px;
-                cursor: pointer;
-                font-size: 0.85rem;
-            }
-            button:disabled { opacity: 0.5; }
-            button.secondary { background: #64748b; }
-            button.danger { background: #ef4444; }
-            
-            .table-list-item {
-                padding: 0.4rem 0.75rem;
-                cursor: pointer;
-                border-radius: 4px;
-                margin-bottom: 0.25rem;
-                font-size: 0.9rem;
-            }
-            .table-list-item:hover { background: #1e293b; }
-            .table-list-item.active { background: #3b82f6; color: white; }
-            
-            table {
-                width: 100%;
-                border-collapse: collapse;
-                font-size: 0.85rem;
-            }
-            th {
-                text-align: left;
-                padding: 0.6rem;
-                background: #334155;
-                position: sticky;
-                top: 0;
-            }
-            td {
-                padding: 0.6rem;
-                border-bottom: 1px solid #334155;
-            }
-            
-            .row-editor {
-                background: #0f172a;
-                padding: 1rem;
-                border-radius: 8px;
-                margin-bottom: 1rem;
-                border: 1px solid #3b82f6;
-            }
-            .row-form {
-                display: grid;
-                grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-                gap: 1rem;
-                margin-bottom: 1rem;
-            }
-            .form-group {
-                display: flex;
-                flex-direction: column;
-                gap: 0.25rem;
-                font-size: 0.75rem;
-            }
-            .error-box {
-                color: #f87171;
-                background: #450a0a;
-                padding: 0.5rem;
-                border-radius: 4px;
-                font-size: 0.8rem;
-                margin-bottom: 0.5rem;
-            }
-        </style>
-        
         <div class="sqlite-manager">
             <div class="header">
                 <input type="text" .value="${this.dbPath.value}" @input="${e => this.dbPath.value = e.target.value}" placeholder="Database Path" />

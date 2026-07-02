@@ -9,6 +9,8 @@ import features::workspace;
 import features::shell;
 import features::man;
 import features::sqlite;
+import features::job_applicant_tracker;
+import features::python_services;
 import libc;
 import std::io;
 
@@ -35,6 +37,12 @@ fn int main() {
 
     rc = features::sqlite::init();
     if (rc != errors::ERR_OK) io::printfn("Failed to register sqlite: %d", rc);
+
+    rc = features::job_applicant_tracker::init();
+    if (rc != errors::ERR_OK) io::printfn("Failed to register job-applicant-tracker: %d", rc);
+
+    rc = features::python_services::init();
+    if (rc != errors::ERR_OK) io::printfn("Failed to register python-services: %d", rc);
 
     rc = features::man::init();
     if (rc != errors::ERR_OK) io::printfn("Failed to register man: %d", rc);

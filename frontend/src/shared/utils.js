@@ -46,3 +46,16 @@ export function uiCard(title, content, icon = '📦') {
         <div class="bd">${content}</div>
     </div>`;
 }
+
+/**
+ * Escapes HTML special characters to prevent XSS.
+ */
+export function escapeHtml(str) {
+    if (!str) return ''
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;')
+}

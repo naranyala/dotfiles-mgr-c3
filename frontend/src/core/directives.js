@@ -119,3 +119,110 @@ export function ifDefined(value) {
 export const nothing = Symbol('nothing')
 
 export { isDirective }
+
+// ============================================================
+// NEW DIRECTIVES
+// ============================================================
+
+// --- show: reactive conditional rendering ---
+// Usage: ${show(condition, html`<div>visible</div>`, html`<div>hidden</div>`)}
+export function show(condition, thenContent, elseContent = null) {
+	return new DirectiveResult({
+		condition,
+		then: thenContent,
+		else_: elseContent,
+	}, 'show')
+}
+
+// --- lazy: IntersectionObserver-based lazy rendering ---
+// Usage: ${lazy(() => html`<heavy-component/>`)}
+export const lazy = directive((renderFn) => {
+	let isVisible = false
+	let hasRendered = false
+	let cachedResult = null
+
+	return new DirectiveResult({
+		renderFn,
+		isVisible: false,
+		hasRendered: false,
+		checkVisibility(el) {
+			if (typeof IntersectionObserver === 'undefined') {
+				isVisible = true
+				hasRendered = true
+				return renderFn()
+			}
+			if (isVisible) return cachedResult
+			const observer = new IntersectionObserver((entries) => {
+				for (const entry of entries) {
+					if (entry.isIntersecting) {
+						isVisible = true
+						hasRendered = true
+						cachedResult = renderFn()
+						observer.disconnect()
+						break
+					}
+				}
+			}, { threshold: 0.1 })
+			observer.observe(el)
+			return ''
+		}
+	}, lazy)
+})
+
+// --- trapFocus: focus trap for modals/dialogs ---
+// Usage: ${trapFocus(html`<div class="modal">...</div>`)}
+export const trapFocus = directive((content) => {
+	return new DirectiveResult({
+		content,
+		activate(root) {
+			const focusable = root.querySelectorAll(
+				'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+			)
+			if (focusable.length === 0) return
+
+			const first = focusable[0]
+			const last = focusable[focusable.length - 1]
+
+			const handler = (e) => {
+				if (e.key !== 'Tab') return
+				if (e.shiftKey) {
+					if (document.activeElement === first) {
+						e.preventDefault()
+						last.focus()
+					}
+				} else {
+					if (document.activeElement === last) {
+						e.preventDefault()
+						first.focus()
+					}
+				}
+			}
+
+			root.addEventListener('keydown', handler)
+			first.focus()
+
+			return () => root.removeEventListener('keydown', handler)
+		}
+	}, trapFocus)
+})
+
+// --- portal: render content in a different DOM location ---
+// Usage: ${portal({ target: document.body, children: html`<div class="modal">...</div>` })}
+export const portal = directive(({ target, children }) => {
+	return new DirectiveResult({ target, children }, portal)
+})
+
+// --- classMap: conditional class names ---
+// Usage: <div ${classMap({ active: isActive, hidden: isHidden })}>
+export function classMap(cls) {
+	return Object.entries(cls).filter(([, v]) => v).map(([k]) => k).join(' ')
+}
+
+// --- styleMap: inline style object ---
+// Usage: <div style="${styleMap({ color: 'red', fontSize: '14px' })}">
+export function styleMap(sty) {
+	return Object.entries(sty).filter(([, v]) => v != null).map(([k, v]) => `${k}:${v}`).join(';')
+}
+
+// --- html template tag re-exports for convenience ---
+export { html } from './template.js'

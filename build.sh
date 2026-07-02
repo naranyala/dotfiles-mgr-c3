@@ -1,126 +1,112 @@
 #!/bin/bash
 set -euo pipefail
+cd "$(dirname "$0")"
 
-PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)"
-cd "$PROJECT_DIR"
+# ── Colors ──────────────────────────────────────────────────────
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+CYAN='\033[0;36m'
+NC='\033[0m'
 
-VCPKG_TRIPLET="x64-linux"
-VCPKG_INSTALLED="$PROJECT_DIR/vendor/vcpkg_installed/$VCPKG_TRIPLET"
+info()  { echo -e "${CYAN}▸${NC} $*"; }
+ok()    { echo -e "${GREEN}✓${NC} $*"; }
+fail()  { echo -e "${RED}✗${NC} $*"; exit 1; }
 
-# Check vcpkg deps are installed
-if [ ! -d "$VCPKG_INSTALLED" ]; then
-    echo "vcpkg dependencies not installed. Running vcpkg-install.sh first..."
-    bash "$PROJECT_DIR/vcpkg-install.sh"
-fi
+# ── Subcommands ─────────────────────────────────────────────────
+cmd_build() {
+    info "Building dotfiles-manager..."
 
-echo "=== Building dotfiles-manager ==="
-
-# Platform-specific pkg-config
-if [[ "$(uname)" == "Linux" ]]; then
-    PKG_DEPS="gtk+-3.0 webkit2gtk-4.1"
-fi
-
-VCPKG_INC="-I$VCPKG_INSTALLED/include"
-VCPKG_LIB="-L$VCPKG_INSTALLED/lib"
-
-# Static libraries from vcpkg
-VCPKG_LIBS=""
-for lib in cjson archive git2 sqlite3 yaml sodium whereami tinyfiledialogs; do
-    if [ -f "$VCPKG_INSTALLED/lib/lib${lib}.a" ]; then
-        VCPKG_LIBS="$VCPKG_LIBS $VCPKG_INSTALLED/lib/lib${lib}.a"
-    elif [ -f "$VCPKG_INSTALLED/lib/lib${lib}.so" ]; then
-        VCPKG_LIBS="$VCPKG_LIBS -l${lib}"
+    # Dependencies
+    if [ ! -f deps/out/lib/libcjson.a ]; then
+        info "Building dependencies..."
+        bash deps/download.sh
+        bash deps/build.sh
     fi
-done
-VCPKG_LIBS="$VCPKG_LIBS -lgit2"
 
-# Add libzip
-if [ -f "$PROJECT_DIR/vendor/libzip.a" ]; then
-    VCPKG_LIBS="$VCPKG_LIBS $PROJECT_DIR/vendor/libzip.a"
-fi
+    # Webview C++ wrapper
+    info "Compiling webview C++ wrapper..."
+    PKG_DEPS=""
+    [ "$(uname)" = "Linux" ] && PKG_DEPS="gtk+-3.0 webkit2gtk-4.1"
 
-# Add sqlite
-if [ -f "$PROJECT_DIR/vendor/sqlite/libsqlite3.a" ]; then
-    VCPKG_LIBS="$VCPKG_LIBS $PROJECT_DIR/vendor/sqlite/libsqlite3.a"
-fi
+    c++ -c webview/core/src/webview.cc -o webview.o -std=c++11 \
+        -DWEBVIEW_GTK -DWEBVIEW_STATIC -DWEBVIEW_IMPLEMENTATION \
+        -Iwebview/core/include \
+        $(pkg-config --cflags $PKG_DEPS 2>/dev/null) \
+        || fail "Failed to compile webview wrapper"
+    ok "webview.o compiled"
 
-echo "Compiling webview C++ wrapper..."
-c++ -c webview/core/src/webview.cc -o webview.o -std=c++11 \
-    -DWEBVIEW_GTK -DWEBVIEW_API=extern \
-    -Iwebview/core/include \
-    $VCPKG_INC \
-    $(pkg-config --cflags $PKG_DEPS)
+    # C3 application
+    info "Compiling C3 application..."
+    c3c compile src webview.o \
+        -o dotfiles-mgr \
+        -z "deps/out/lib/libcjson.a \
+            deps/out/lib/libarchive.a \
+            deps/out/lib/libgit2.a \
+            deps/out/lib/libsqlite3.a \
+            deps/out/lib/libyaml.a \
+            deps/out/lib/libsodium.a \
+            $(pkg-config --libs $PKG_DEPS 2>/dev/null) \
+            -lstdc++ -lpthread -lz -lm -ldl -lgssapi_krb5 -lssl -lcrypto" \
+        || fail "Failed to compile C3 application"
+    ok "Build successful → ./dotfiles-mgr"
+}
 
-echo "Compiling C3 application..."
-c3c compile \
-    src/main.c3 \
-    src/shared/json_utils.c3 \
-    src/bindings/webview.c3 \
-    src/bindings/cjson.c3 \
-    src/bindings/sqlite.c3 \
-    src/bindings/sqlite3.c3 \
-    src/bindings/libgit2.c3 \
-    src/bindings/archive.c3 \
-    src/bindings/yaml.c3 \
-    src/bindings/sodium.c3 \
-    src/bindings/whereami.c3 \
-    src/bindings/tinyfiledialogs.c3 \
-    src/bindings/libzip.c3 \
-    src/core/rpc.c3 \
-    src/core/errors.c3 \
-    src/core/plugin.c3 \
-    src/features/ping/ping.c3 \
-    src/features/system/system.c3 \
-    src/features/git/repo.c3 \
-    src/features/workspace/workspace.c3 \
-    src/features/shell/shell.c3 \
-    src/features/man/man.c3 \
-    src/features/sqlite/sqlite.c3 \
-    webview.o \
-    -o dotfiles-mgr \
-    -z "$VCPKG_INC $VCPKG_LIB $VCPKG_LIBS \
-        $(pkg-config --libs $PKG_DEPS) \
-        -lstdc++ -lpthread -lz -lm -ldl"
+cmd_run() {
+    [ -f "./dotfiles-mgr" ] || cmd_build
+    info "Running dotfiles-mgr..."
+    exec ./dotfiles-mgr
+}
 
-echo ""
-echo "Build successful! Executable is 'dotfiles-mgr'"
-
-# Build test binary if test file exists
-if [ -f "$PROJECT_DIR/tests/test_rpc_handlers.c3" ]; then
+cmd_longest() {
+    echo "=== Files With Longest Lines (C3 / C / JS) ==="
+    echo "    Showing files where any line exceeds 100 chars"
     echo ""
-    echo "Compiling test binary..."
-    c3c compile \
-        src/tests/test_rpc_handlers.c3 \
-        src/shared/json_utils.c3 \
-        src/bindings/webview.c3 \
-        src/bindings/cjson.c3 \
-        src/bindings/sqlite.c3 \
-        src/bindings/sqlite3.c3 \
-        src/bindings/libgit2.c3 \
-        src/bindings/archive.c3 \
-        src/bindings/yaml.c3 \
-        src/bindings/sodium.c3 \
-        src/bindings/whereami.c3 \
-        src/bindings/tinyfiledialogs.c3 \
-        src/bindings/libzip.c3 \
-        src/core/rpc.c3 \
-        src/core/errors.c3 \
-        src/core/plugin.c3 \
-        src/features/ping/ping.c3 \
-        src/features/system/system.c3 \
-        src/features/git/repo.c3 \
-        src/features/workspace/workspace.c3 \
-        src/features/shell/shell.c3 \
-        src/features/sqlite/sqlite.c3 \
-        webview.o \
-        -o test_rpc \
-        -z "$VCPKG_INC $VCPKG_LIB $VCPKG_LIBS \
-            $(pkg-config --libs $PKG_DEPS) \
-            -lstdc++ -lpthread -lz -lm -ldl"
 
-    if [ $? -eq 0 ]; then
-        echo "Test binary built: ./test_rpc"
-    else
-        echo "Test build failed!"
-    fi
-fi
+    scan_dir() {
+        local label="$1"; shift
+        echo "--- $label ---"
+        find "$@" -type f 2>/dev/null | sort | while read f; do
+            max=$(awk 'length > m { m = length } END { print m+0 }' "$f")
+            if [ "$max" -gt 100 ] 2>/dev/null; then
+                printf "%4d|%s\n" "$max" "$f"
+            fi
+        done | sort -t'|' -k1 -rn | head -15 | while IFS='|' read -r line file; do
+            printf "  %4d  %s\n" "$line" "$file"
+        done
+        echo ""
+    }
+
+    scan_dir "C3 Files" src -name '*.c3'
+    scan_dir "C/C++ Files" src webview -name '*.c' -o -name '*.cc' -o -name '*.h'
+    scan_dir "JS Files" frontend/src -name '*.js'
+    echo "=== Done ==="
+}
+
+cmd_clean() {
+    info "Cleaning build artifacts..."
+    rm -f webview.o dotfiles-mgr
+    ok "Cleaned"
+}
+
+cmd_help() {
+    cat <<'EOF'
+Usage: ./build.sh [command]
+
+Commands:
+  build      Build the project (default)
+  run        Build if needed, then run
+  longest    List files with longest lines (C3/C/JS)
+  clean      Remove build artifacts
+  help       Show this help
+EOF
+}
+
+# ── Dispatch ────────────────────────────────────────────────────
+case "${1:-build}" in
+    build)   cmd_build ;;
+    run)     cmd_run ;;
+    longest) cmd_longest ;;
+    clean)   cmd_clean ;;
+    help|-h|--help) cmd_help ;;
+    *)       fail "Unknown command: $1 (try './build.sh help')" ;;
+esac

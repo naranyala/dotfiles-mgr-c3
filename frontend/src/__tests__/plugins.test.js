@@ -22,6 +22,36 @@ globalThis.document.documentElement.style.setProperty = function(k, v) {
 	_origSetProperty.call(this, k, v)
 }
 
+if (typeof HTMLElement === 'undefined') {
+	globalThis.HTMLElement = class HTMLElement {
+		constructor() {
+			this._shadowRoot = null
+			this._attributes = {}
+		}
+		attachShadow() {
+			this._shadowRoot = {
+				innerHTML: '',
+				querySelector: () => null,
+				querySelectorAll: () => [],
+				addEventListener: () => {},
+				appendChild: () => {},
+				removeChild: () => {},
+				childNodes: [],
+				children: [],
+				adoptedStyleSheets: [],
+			}
+			return this._shadowRoot
+		}
+		get shadowRoot() { return this._shadowRoot }
+		getAttribute(name) { return this._attributes[name] || null }
+		setAttribute(name, value) { this._attributes[name] = value }
+		hasAttribute(name) { return name in this._attributes }
+	}
+}
+if (typeof customElements === 'undefined') {
+	globalThis.customElements = { define: () => {}, get: () => null }
+}
+
 // --- Plugin contract: all plugins must export { state, init, onMount, render } ---
 
 const pluginModules = {

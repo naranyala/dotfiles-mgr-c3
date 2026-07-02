@@ -24,3 +24,16 @@ export function Portal({ target, children }) {
 export function ErrorBoundary({ fallback, children }) {
 	return new DirectiveResult({ children, fallback }, 'errorBoundary')
 }
+
+/**
+ * tryCatch: render children safely, show fallback on error.
+ * Usage: ${tryCatch(() => riskyRender(), (err) => html`<error/>` )}
+ */
+export function tryCatch(fn, fallback) {
+	try {
+		return fn()
+	} catch (e) {
+		console.error('[ErrorBoundary]', e)
+		return typeof fallback === 'function' ? fallback(e) : fallback
+	}
+}

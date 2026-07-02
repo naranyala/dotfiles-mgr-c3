@@ -1,0 +1,6 @@
+[project]
+name = "md-to-pdf"
+version = "0.1.0"
+description = "Markdown to PDF converter — stdlib HTTP + markdown + fpdf2"
+requires-python = ">=3.10"
+dependencies = ["markdown>=3.7", "fpdf2>=2.8"]

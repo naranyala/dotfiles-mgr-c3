@@ -12,12 +12,13 @@
 **/node_modules
 
 build/
+build_bin
+.build-bin
+webview.o
 examples/
 webview/
 dotfiles-mgr
 test/
-test2/
-test3/
 
 # ── Frontend ─────────────────────────────────────────────────
 frontend/node_modules/
@@ -58,6 +59,12 @@ deps/libsodium/
 *~
 .cache/
 compile_commands.json
+
+# ── Python / uv ───────────────────────────────────────────
+python/.venv/
+python/uv.lock
+__pycache__/
+*.pyc
 
 # ── OS ─────────────────────────────────────────────────────
 .DS_Store

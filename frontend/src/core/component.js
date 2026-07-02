@@ -1,6 +1,8 @@
-import { effect, signal } from './signals.js'
-import { render as renderTemplate, TemplateResult } from './template.js'
+import { effect, signal, computed, watch, onCleanup, batch } from './signals.js'
+import { render as renderTemplate, TemplateResult, html as templateHtml } from './template.js'
 import { morph } from './dom.js'
+
+const HOST_DEFAULTS = `:host{display:block;font-family:'Inter',system-ui,-apple-system,sans-serif;color:#f8fafc;box-sizing:border-box}:host([hidden]){display:none}`
 
 export class ReactiveComponent extends HTMLElement {
 	constructor() {
@@ -8,6 +10,7 @@ export class ReactiveComponent extends HTMLElement {
 		this.props = {}
 		this._isMounted = false
 		this._hasRendered = false
+		this._firstUpdated = false
 		this._updatePending = false
 		this._updateResolve = null
 		this._updatePromise = null
@@ -15,41 +18,58 @@ export class ReactiveComponent extends HTMLElement {
 		this._delegatedEvents = new Map()
 		this._delegationRoots = new Set()
 		this._effectCleanup = null
-		
+		this._setupState = null
+		this._previousProps = {}
+
 		this.attachShadow({ mode: 'open' })
+
+		const sheets = []
+		const hostSheet = new CSSStyleSheet()
+		hostSheet.replaceSync(HOST_DEFAULTS)
+		sheets.push(hostSheet)
 
 		if (this.constructor.styles) {
 			const sheet = new CSSStyleSheet()
 			sheet.replaceSync(this.constructor.styles)
-			this.shadowRoot.adoptedStyleSheets = [sheet]
+			sheets.push(sheet)
 		}
-		
+		const resetSheet = new CSSStyleSheet()
+		resetSheet.replaceSync(':host, *, *::before, *::after { border-radius: 0 !important; }')
+		sheets.push(resetSheet)
+		this.shadowRoot.adoptedStyleSheets = sheets
+
 		const props = this.constructor.properties || {}
 		this._propSignals = {}
-		
+
 		for (const [name, config] of Object.entries(props)) {
 			const type = typeof config === 'function' ? config : config.type
 			const options = typeof config === 'object' ? config : {}
-			
+
 			const attrName = options.attribute || name
-			const initialVal = this.hasAttribute(attrName) ? this.getAttribute(attrName) : options.value
-			
+			const hasAttr = this.hasAttribute(attrName)
+			const initialVal = hasAttr ? this.getAttribute(attrName) : (options.value !== undefined ? options.value : (type === Boolean ? false : undefined))
+
 			const sig = signal(this._cast(initialVal, type))
 			this._propSignals[name] = sig
-			
+
 			Object.defineProperty(this, name, {
 				get: () => sig.value,
 				set: (val) => {
-					sig.value = this._cast(val, type)
+					const old = sig.value
+					const casted = this._cast(val, type)
+					sig.value = casted
 					if (options.reflect) {
 						if (val == null || val === false) this.removeAttribute(attrName)
 						else this.setAttribute(attrName, val === true ? '' : val)
+					}
+					if (this._isMounted && !Object.is(old, casted)) {
+						this.onPropsChanged({ [name]: { old, new: casted } })
 					}
 				}
 			})
 		}
 	}
-	
+
 	_cast(val, type) {
 		if (val == null) return val
 		if (type === Boolean) return val !== null && val !== 'false'
@@ -71,30 +91,50 @@ export class ReactiveComponent extends HTMLElement {
 				this._propSignals[name].value = this._cast(newVal, type)
 			}
 		}
+		this.onAttributeChanged(attr, oldVal, newVal)
 	}
-	
+
+	adoptedCallback() {
+		this.onAdopted()
+	}
+
 	addController(controller) {
 		this._controllers.add(controller)
 		if (this._isMounted && controller.hostConnected) controller.hostConnected()
 	}
-	
+
 	removeController(controller) {
 		this._controllers.delete(controller)
 		if (this._isMounted && controller.hostDisconnected) controller.hostDisconnected()
 	}
 
-	connectedCallback() {
+		connectedCallback() {
+		this._previousProps = this._collectProps()
+		this.onBeforeMount()
 		this._isMounted = true
 		this.onMount()
-		
+
 		for (const c of this._controllers) if (c.hostConnected) c.hostConnected()
-		
+
 		this._effectCleanup = effect(() => {
-			const result = this.render()
-			this.requestUpdate(result)
+			try {
+				const result = this.render()
+				this.requestUpdate(result)
+			} catch (err) {
+				this.onError(err)
+			}
 		})
 	}
-	
+
+	_collectProps() {
+		const props = this.constructor.properties || {}
+		const result = {}
+		for (const name of Object.keys(props)) {
+			result[name] = this[name]
+		}
+		return result
+	}
+
 	requestUpdate(templateResult) {
 		this._latestResult = templateResult || this.render()
 		if (!this._updatePending) {
@@ -108,7 +148,7 @@ export class ReactiveComponent extends HTMLElement {
 	get updateComplete() {
 		return this._updatePromise || Promise.resolve()
 	}
-	
+
 	performUpdate() {
 		if (!this._isMounted) {
 			this._updatePending = false
@@ -116,24 +156,38 @@ export class ReactiveComponent extends HTMLElement {
 			return
 		}
 
-		const res = this._latestResult
-		
-		if (res instanceof TemplateResult) {
-			renderTemplate(res, this.shadowRoot)
-		} else if (res) {
-			if (!this._hasRendered) {
-				this.shadowRoot.innerHTML = res
-				this._hasRendered = true
-			} else {
-				const template = document.createElement('template')
-				template.innerHTML = res
-				morph(this.shadowRoot, template.content)
+		try {
+			this.onBeforeRender()
+
+			const res = this._latestResult
+
+			if (res instanceof TemplateResult) {
+				renderTemplate(res, this.shadowRoot)
+			} else if (res) {
+				if (!this._hasRendered) {
+					this.shadowRoot.innerHTML = res
+					this._hasRendered = true
+				} else {
+					const template = document.createElement('template')
+					template.innerHTML = res
+					morph(this.shadowRoot, template.content)
+				}
 			}
+
+			this._updatePending = false
+			this.onRendered()
+
+			if (!this._firstUpdated) {
+				this._firstUpdated = true
+				this.firstUpdated()
+			}
+			this.updated()
+
+			for (const c of this._controllers) if (c.hostUpdated) c.hostUpdated()
+		} catch (err) {
+			this._updatePending = false
+			this.onError(err)
 		}
-		
-		this._updatePending = false
-		this.onRendered()
-		for (const c of this._controllers) if (c.hostUpdated) c.hostUpdated()
 
 		if (this._updateResolve) {
 			this._updateResolve()
@@ -157,9 +211,20 @@ export class ReactiveComponent extends HTMLElement {
 		return ''
 	}
 
+	// Lifecycle hooks
+	onBeforeMount() {}
 	onMount() {}
+	onBeforeRender() {}
 	onRendered() {}
 	onDestroy() {}
+	firstUpdated() {}
+	updated() {}
+	onPropsChanged(changedProps) {}
+	onAttributeChanged(attr, oldVal, newVal) {}
+	onAdopted() {}
+	onError(error) {
+		console.error(`[${this.tagName}]`, error)
+	}
 
 	query(selector) { return this.shadowRoot ? this.shadowRoot.querySelector(selector) : null }
 
@@ -179,7 +244,7 @@ export class ReactiveComponent extends HTMLElement {
 	delegate(type, selector, listener) {
 		if (!this._delegatedEvents.has(type)) this._delegatedEvents.set(type, [])
 		this._delegatedEvents.get(type).push({ selector, listener })
-		
+
 		if (!this._delegationRoots.has(type)) {
 			this._delegationRoots.add(type)
 			setTimeout(() => {
@@ -194,20 +259,22 @@ export class ReactiveComponent extends HTMLElement {
 			}, 0)
 		}
 	}
-	
+
 	static define(config) {
 		const cls = class extends (config.base || this) {}
 		if (config.properties) cls.properties = config.properties
 		if (config.template) cls.template = config.template
 		if (config.styles) cls.styles = config.styles
-		
+
 		if (config.methods) {
 			for (const [k, v] of Object.entries(config.methods)) {
 				cls.prototype[k] = v
 			}
 		}
-		
+
 		customElements.define(config.name, cls)
 		return cls
 	}
 }
+
+
